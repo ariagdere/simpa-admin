@@ -1,0 +1,53 @@
+---
+// src/pages/index.astro
+export const prerender = false;
+import { getHeroSlides } from '../lib/queries.js';
+import { env } from 'cloudflare:workers';
+
+const db = env.DB;
+const [simpaSlides, superpressSlides] = await Promise.all([
+  getHeroSlides(db, 'Simpa'),
+  getHeroSlides(db, 'Superpress'),
+]);
+---
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 40px 24px; }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    .sub { color: #6b7280; font-size: 14px; margin-bottom: 32px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; }
+    .card h2 { font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+    .row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid #f1f2f4; font-size: 13.5px; }
+    .row:first-of-type { border-top: none; }
+    .muted { color: #9ca3af; }
+    .badge { font-size: 11px; background: #eef1f5; color: #4a5568; padding: 2px 8px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Admin Panel</h1>
+    <p class="sub">Simpa Elektrik &amp; Superpress ortak yönetim paneli — iskelet devrede.</p>
+
+    <div class="card">
+      <h2><span class="dot"></span> D1 bağlantısı çalışıyor</h2>
+      <div class="row"><span>Simpa hero slaytları</span><span class="badge">{simpaSlides.length} kayıt</span></div>
+      <div class="row"><span>Superpress hero slaytları</span><span class="badge">{superpressSlides.length} kayıt</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Sırada</h2>
+      <div class="row"><span>Hero Slaytlar — liste + düzenleme</span><span class="muted">yapılacak</span></div>
+      <div class="row"><span>Ürünler / Kategoriler</span><span class="muted">yapılacak</span></div>
+      <div class="row"><span>Statik Sayfa İçerikleri</span><span class="muted">yapılacak</span></div>
+    </div>
+  </div>
+</body>
+</html>
