@@ -8,5 +8,5 @@ database_name = "simpa-db"
 database_id = "d35f9f41-97b4-4627-9c5f-9a5475ee94e3"
 
 [[r2_buckets]]
-binding = "ASSETS"
+binding = "UPLOADS"
 bucket_name = "simpa-assets"
