@@ -6,10 +6,13 @@ export const prerender = false;
 
 const FIELDS = [
   'is_active', 'mirror_layout', 'bg_color', 'bg_image_url', 'bg_image_opacity',
+  'show_on_tr', 'show_on_en',
   'badge_text_tr', 'badge_text_en', 'headline_tr', 'headline_en',
-  'highlight_word_tr', 'highlight_word_en', 'subtext_tr', 'subtext_en', 'fg_image_url',
-  'cta_primary_text_tr', 'cta_primary_text_en', 'cta_primary_link',
-  'cta_secondary_text_tr', 'cta_secondary_text_en', 'cta_secondary_link', 'slide_link',
+  'highlight_word_tr', 'highlight_word_en', 'subtext_tr', 'subtext_en',
+  'fg_image_url_tr', 'fg_image_url_en',
+  'cta_primary_text_tr', 'cta_primary_text_en', 'cta_primary_link_tr', 'cta_primary_link_en',
+  'cta_secondary_text_tr', 'cta_secondary_text_en', 'cta_secondary_link_tr', 'cta_secondary_link_en',
+  'slide_link',
 ];
 
 export async function POST({ request }) {
@@ -30,7 +33,7 @@ export async function POST({ request }) {
 
     const fields = {};
     for (const key of FIELDS) {
-      if (key === 'is_active' || key === 'mirror_layout') {
+      if (key === 'is_active' || key === 'mirror_layout' || key === 'show_on_tr' || key === 'show_on_en') {
         fields[key] = body[key] ? 1 : 0;
       } else if (key === 'bg_image_opacity') {
         fields[key] = body[key] === '' || body[key] == null ? null : Number(body[key]);
