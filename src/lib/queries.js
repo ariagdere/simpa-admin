@@ -20,12 +20,14 @@ export async function getHeroSlide(db, id) {
 }
 
 /**
- * Canlı site için: SADECE aktif slaytlar, dile göre doğru alanlar seçilmiş,
- * boş alanlar null olarak kalır (render tarafı "tanımlıysa göster" mantığını uygular).
+ * Canlı site için: SADECE aktif VE o dilde gösterilmesi açık olan slaytlar,
+ * dile göre doğru alanlar seçilmiş, boş alanlar null olarak kalır (render
+ * tarafı "tanımlıysa göster" mantığını uygular).
  */
 export async function getActiveHeroSlides(db, brand, lang) {
+  const visCol = lang === 'en' ? 'show_on_en' : 'show_on_tr';
   const { results } = await db
-    .prepare('SELECT * FROM hero_slides WHERE brand = ? AND is_active = 1 ORDER BY sort_order')
+    .prepare(`SELECT * FROM hero_slides WHERE brand = ? AND is_active = 1 AND ${visCol} = 1 ORDER BY sort_order`)
     .bind(brand)
     .all();
 
@@ -39,11 +41,11 @@ export async function getActiveHeroSlides(db, brand, lang) {
     headline: lang === 'en' ? s.headline_en : s.headline_tr,
     highlightWord: lang === 'en' ? s.highlight_word_en : s.highlight_word_tr,
     subtext: lang === 'en' ? s.subtext_en : s.subtext_tr,
-    fgImageUrl: s.fg_image_url,
+    fgImageUrl: lang === 'en' ? s.fg_image_url_en : s.fg_image_url_tr,
     ctaPrimaryText: lang === 'en' ? s.cta_primary_text_en : s.cta_primary_text_tr,
-    ctaPrimaryLink: s.cta_primary_link,
+    ctaPrimaryLink: lang === 'en' ? s.cta_primary_link_en : s.cta_primary_link_tr,
     ctaSecondaryText: lang === 'en' ? s.cta_secondary_text_en : s.cta_secondary_text_tr,
-    ctaSecondaryLink: s.cta_secondary_link,
+    ctaSecondaryLink: lang === 'en' ? s.cta_secondary_link_en : s.cta_secondary_link_tr,
     slideLink: s.slide_link,
   }));
 }
@@ -58,10 +60,13 @@ export async function createHeroSlide(db, brand) {
 
 const HERO_SLIDE_FIELDS = [
   'is_active', 'mirror_layout', 'bg_color', 'bg_image_url', 'bg_image_opacity',
+  'show_on_tr', 'show_on_en',
   'badge_text_tr', 'badge_text_en', 'headline_tr', 'headline_en',
-  'highlight_word_tr', 'highlight_word_en', 'subtext_tr', 'subtext_en', 'fg_image_url',
-  'cta_primary_text_tr', 'cta_primary_text_en', 'cta_primary_link',
-  'cta_secondary_text_tr', 'cta_secondary_text_en', 'cta_secondary_link', 'slide_link',
+  'highlight_word_tr', 'highlight_word_en', 'subtext_tr', 'subtext_en',
+  'fg_image_url_tr', 'fg_image_url_en',
+  'cta_primary_text_tr', 'cta_primary_text_en', 'cta_primary_link_tr', 'cta_primary_link_en',
+  'cta_secondary_text_tr', 'cta_secondary_text_en', 'cta_secondary_link_tr', 'cta_secondary_link_en',
+  'slide_link',
 ];
 
 /** fields: yukarıdaki HERO_SLIDE_FIELDS'ten herhangi bir alt kümesi içeren obje. */
