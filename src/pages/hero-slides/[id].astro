@@ -16,12 +16,14 @@ let brand;
 if (isNew) {
   brand = url.searchParams.get('brand') === 'Superpress' ? 'Superpress' : 'Simpa';
   slide = {
-    id: null, brand, is_active: 1, mirror_layout: 0,
+    id: null, brand, is_active: 1, mirror_layout: 0, show_on_tr: 1, show_on_en: 1,
     bg_color: '#1D1D1B', bg_image_url: '', bg_image_opacity: 60,
     badge_text_tr: '', badge_text_en: '', headline_tr: '', headline_en: '',
-    highlight_word_tr: '', highlight_word_en: '', subtext_tr: '', subtext_en: '', fg_image_url: '',
-    cta_primary_text_tr: '', cta_primary_text_en: '', cta_primary_link: '',
-    cta_secondary_text_tr: '', cta_secondary_text_en: '', cta_secondary_link: '', slide_link: '',
+    highlight_word_tr: '', highlight_word_en: '', subtext_tr: '', subtext_en: '',
+    fg_image_url_tr: '', fg_image_url_en: '',
+    cta_primary_text_tr: '', cta_primary_text_en: '', cta_primary_link_tr: '', cta_primary_link_en: '',
+    cta_secondary_text_tr: '', cta_secondary_text_en: '', cta_secondary_link_tr: '', cta_secondary_link_en: '',
+    slide_link: '',
   };
 } else {
   slide = await getHeroSlide(db, Number(id));
@@ -110,6 +112,14 @@ const val = (v) => v ?? '';
           <div><div class="toggle-label">Aynalama</div><div class="toggle-desc">Açıksa görsel sola, metin sağa geçer.</div></div>
           <label class="switch"><input type="checkbox" name="mirror_layout" checked={!!slide.mirror_layout} /><span class="track"></span><span class="thumb"></span></label>
         </div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">Türkçe sitede göster</div><div class="toggle-desc">Kapalıysa TR sitede bu slayt hiç görünmez.</div></div>
+          <label class="switch"><input type="checkbox" name="show_on_tr" checked={slide.show_on_tr !== 0} /><span class="track"></span><span class="thumb"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">İngilizce sitede göster</div><div class="toggle-desc">Kapalıysa EN sitede bu slayt hiç görünmez.</div></div>
+          <label class="switch"><input type="checkbox" name="show_on_en" checked={slide.show_on_en !== 0} /><span class="track"></span><span class="thumb"></span></label>
+        </div>
       </div>
 
       <div class="section">
@@ -168,13 +178,24 @@ const val = (v) => v ?? '';
 
       <div class="section">
         <h2>Ön Plan Görseli</h2>
-        <p class="section-hint">Boş bırakılırsa slaytta hiç görsel gösterilmez (katalog kutusunun durduğu yer).</p>
-        <div class="field">
-          <div class="upload-row">
-            <input type="url" name="fg_image_url" value={val(slide.fg_image_url)} placeholder="https://..." />
-            <button type="button" class="upload-btn" data-target="fg_image_url">Yükle</button>
+        <p class="section-hint">Boş bırakılırsa slaytta hiç görsel gösterilmez (katalog kutusunun durduğu yer). TR ve EN için farklı görsel (örn. üzerinde farklı dilde yazı olan katalog kapağı) yükleyebilirsin.</p>
+        <div class="row2">
+          <div class="field">
+            <label>Görsel (TR)</label>
+            <div class="upload-row">
+              <input type="url" name="fg_image_url_tr" value={val(slide.fg_image_url_tr)} placeholder="https://..." />
+              <button type="button" class="upload-btn" data-target="fg_image_url_tr">Yükle</button>
+            </div>
+            <img class={`img-preview${slide.fg_image_url_tr ? ' show' : ''}`} data-preview="fg_image_url_tr" src={slide.fg_image_url_tr || ''} />
           </div>
-          <img class={`img-preview${slide.fg_image_url ? ' show' : ''}`} data-preview="fg_image_url" src={slide.fg_image_url || ''} />
+          <div class="field">
+            <label>Görsel (EN)</label>
+            <div class="upload-row">
+              <input type="url" name="fg_image_url_en" value={val(slide.fg_image_url_en)} placeholder="https://..." />
+              <button type="button" class="upload-btn" data-target="fg_image_url_en">Yükle</button>
+            </div>
+            <img class={`img-preview${slide.fg_image_url_en ? ' show' : ''}`} data-preview="fg_image_url_en" src={slide.fg_image_url_en || ''} />
+          </div>
         </div>
       </div>
 
@@ -185,7 +206,10 @@ const val = (v) => v ?? '';
           <div class="field"><label>Metin (TR)</label><input type="text" name="cta_primary_text_tr" value={val(slide.cta_primary_text_tr)} /></div>
           <div class="field"><label>Metin (EN)</label><input type="text" name="cta_primary_text_en" value={val(slide.cta_primary_text_en)} /></div>
         </div>
-        <div class="field"><label>Link</label><input type="text" name="cta_primary_link" value={val(slide.cta_primary_link)} placeholder="/kategori/" /></div>
+        <div class="row2">
+          <div class="field"><label>Link (TR)</label><input type="text" name="cta_primary_link_tr" value={val(slide.cta_primary_link_tr)} placeholder="/kategori/" /></div>
+          <div class="field"><label>Link (EN)</label><input type="text" name="cta_primary_link_en" value={val(slide.cta_primary_link_en)} placeholder="/en/category/" /></div>
+        </div>
       </div>
 
       <div class="section">
@@ -195,7 +219,10 @@ const val = (v) => v ?? '';
           <div class="field"><label>Metin (TR)</label><input type="text" name="cta_secondary_text_tr" value={val(slide.cta_secondary_text_tr)} /></div>
           <div class="field"><label>Metin (EN)</label><input type="text" name="cta_secondary_text_en" value={val(slide.cta_secondary_text_en)} /></div>
         </div>
-        <div class="field"><label>Link</label><input type="text" name="cta_secondary_link" value={val(slide.cta_secondary_link)} placeholder="https://... (katalog PDF)" /></div>
+        <div class="row2">
+          <div class="field"><label>Link (TR)</label><input type="text" name="cta_secondary_link_tr" value={val(slide.cta_secondary_link_tr)} placeholder="https://... (katalog PDF)" /></div>
+          <div class="field"><label>Link (EN)</label><input type="text" name="cta_secondary_link_en" value={val(slide.cta_secondary_link_en)} placeholder="https://... (catalog PDF)" /></div>
+        </div>
       </div>
 
       <div class="section">
@@ -277,6 +304,8 @@ const val = (v) => v ?? '';
       }
       payload.is_active = form.querySelector('[name="is_active"]').checked;
       payload.mirror_layout = form.querySelector('[name="mirror_layout"]').checked;
+      payload.show_on_tr = form.querySelector('[name="show_on_tr"]').checked;
+      payload.show_on_en = form.querySelector('[name="show_on_en"]').checked;
 
       try {
         const res = await fetch('/api/hero-slides/save', {
