@@ -125,3 +125,64 @@ export async function upsertPageSection(db, brand, pageKey, sectionKey, contentT
     .bind(brand, pageKey, sectionKey, contentTr, contentEn, sortOrder)
     .run();
 }
+
+// ───────────────────────────── CATEGORIES ─────────────────────────────
+// Kategoriler brand'e özel değil, tek paylaşılan liste (marka ayrımı ürün
+// seviyesinde). Bu yüzden burada marka filtresi yok.
+
+/** Admin panel için: tüm kategoriler + her markadan kaçar ürünü olduğu (silme öncesi uyarı için). */
+export async function getCategoriesAdmin(db) {
+  const { results } = await db
+    .prepare(
+      `SELECT c.*,
+              (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.brand = 'Simpa') as simpa_count,
+              (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.brand = 'Superpress') as superpress_count
+       FROM categories c
+       ORDER BY c.sort_order`
+    )
+    .all();
+  return results;
+}
+
+export async function getCategoryById(db, id) {
+  return db.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();
+}
+
+export async function createCategory(db) {
+  const { meta } = await db
+    .prepare('INSERT INTO categories (name_tr, sort_order) VALUES (?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories))')
+    .bind('Yeni Kategori')
+    .run();
+  return meta.last_row_id;
+}
+
+const CATEGORY_FIELDS = ['name_tr', 'name_en', 'slug', 'image_url'];
+
+export async function updateCategory(db, id, fields) {
+  const keys = Object.keys(fields).filter((k) => CATEGORY_FIELDS.includes(k));
+  if (keys.length === 0) return;
+  const setClause = keys.map((k) => `${k} = ?`).join(', ');
+  const values = keys.map((k) => fields[k]);
+  await db.prepare(`UPDATE categories SET ${setClause} WHERE id = ?`).bind(...values, id).run();
+}
+
+/** Slug'ın başka bir kategoride kullanılıp kullanılmadığını kontrol eder (kendisi hariç). */
+export async function isSlugTaken(db, slug, excludeId) {
+  const row = await db.prepare('SELECT id FROM categories WHERE slug = ? AND id != ?').bind(slug, excludeId || -1).first();
+  return !!row;
+}
+
+/** Toplam ürün sayısını döner (brand fark etmeksizin) — silme öncesi güvenlik kontrolü için. */
+export async function getCategoryProductCount(db, id) {
+  const row = await db.prepare('SELECT COUNT(*) as n FROM products WHERE category_id = ?').bind(id).first();
+  return row.n;
+}
+
+export async function deleteCategory(db, id) {
+  await db.prepare('DELETE FROM categories WHERE id = ?').bind(id).run();
+}
+
+export async function reorderCategories(db, ids) {
+  const stmts = ids.map((id, i) => db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?').bind(i, id));
+  await db.batch(stmts);
+}
