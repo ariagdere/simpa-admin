@@ -1,0 +1,143 @@
+---
+// src/pages/categories/index.astro
+export const prerender = false;
+
+import { getCategoriesAdmin } from '../../lib/queries.js';
+import { env } from 'cloudflare:workers';
+
+const categories = await getCategoriesAdmin(env.DB);
+---
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kategoriler — Admin Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 32px 24px; }
+    .wrap { max-width: 900px; margin: 0 auto; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    h1 { font-size: 20px; }
+    a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
+    .sub { color: #6b7280; font-size: 14px; margin-bottom: 20px; }
+
+    .add-btn { display: inline-block; background: #1e2535; color: #fff; font-size: 13.5px; font-weight: 600; padding: 9px 16px; border-radius: 6px; text-decoration: none; margin-bottom: 16px; }
+
+    .cat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 18px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; }
+    .cat-order { display: flex; flex-direction: column; gap: 2px; }
+    .cat-order button { width: 22px; height: 18px; border: 1px solid #d7d9dd; background: #fff; border-radius: 4px; cursor: pointer; font-size: 10px; color: #6b7280; }
+    .cat-order button:disabled { opacity: .3; cursor: default; }
+
+    .cat-thumb { width: 40px; height: 40px; border-radius: 6px; background: #f4f5f7; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .cat-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .cat-thumb-empty { font-size: 10px; color: #cbd0d6; }
+
+    .cat-info { flex: 1; min-width: 0; }
+    .cat-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cat-meta { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .cat-counts { display: flex; gap: 10px; font-size: 12px; color: #6b7280; flex-shrink: 0; }
+    .count-pill { background: #f4f5f7; padding: 3px 9px; border-radius: 10px; white-space: nowrap; }
+
+    .cat-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-edit { font-size: 12.5px; font-weight: 600; color: #1e5fa8; text-decoration: none; padding: 6px 12px; border: 1px solid #d7d9dd; border-radius: 6px; }
+    .btn-delete { font-size: 12.5px; font-weight: 600; color: #b91c1c; background: none; border: 1px solid #f3d1d1; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <h1>Kategoriler</h1>
+      <a class="back" href="/">← Panel</a>
+    </div>
+    <p class="sub">Simpa ve Superpress arasında paylaşılan tek liste — bir kategori sadece ilgili markadan ürünü varsa o sitede görünür, ayrıca marka ataması yapmana gerek yok.</p>
+
+    <a class="add-btn" href="/categories/new">+ Yeni Kategori</a>
+
+    <div id="catList">
+      {categories.map((c, i) => (
+        <div class="cat-card" data-id={c.id}>
+          <div class="cat-order">
+            <button type="button" class="move-up" disabled={i === 0}>▲</button>
+            <button type="button" class="move-down" disabled={i === categories.length - 1}>▼</button>
+          </div>
+          <div class="cat-thumb">
+            {c.image_url ? <img src={c.image_url} alt="" /> : <span class="cat-thumb-empty">yok</span>}
+          </div>
+          <div class="cat-info">
+            <div class="cat-name">{c.name_tr}{!c.name_en && <span style="color:#d97706"> (EN eksik)</span>}</div>
+            <div class="cat-meta">/{c.slug}</div>
+          </div>
+          <div class="cat-counts">
+            <span class="count-pill">Simpa: {c.simpa_count}</span>
+            <span class="count-pill">Superpress: {c.superpress_count}</span>
+          </div>
+          <div class="cat-actions">
+            <a class="btn-edit" href={`/categories/${c.id}`}>Düzenle</a>
+            <button type="button" class="btn-delete" data-id={c.id} data-name={c.name_tr} data-count={c.simpa_count + c.superpress_count}>Sil</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.btn-delete').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        const count = Number(btn.dataset.count);
+        if (count > 0) {
+          alert(`"${name}" silinemiyor — bu kategoride toplam ${count} ürün var. Önce ürünleri başka bir kategoriye taşımalısın.`);
+          return;
+        }
+        if (!confirm(`"${name}" silinsin mi? Bu işlem geri alınamaz.`)) return;
+        const res = await fetch('/api/categories/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          alert(data.error || 'Silinemedi, tekrar dene.');
+        }
+      });
+    });
+
+    function currentOrder() {
+      return Array.from(document.querySelectorAll('.cat-card')).map((c) => c.dataset.id);
+    }
+    async function saveOrder(ids) {
+      await fetch('/api/categories/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+    }
+    document.querySelectorAll('.move-up').forEach((btn) => {
+      btn.onclick = async () => {
+        const card = btn.closest('.cat-card');
+        const prev = card.previousElementSibling;
+        if (prev) {
+          card.parentNode.insertBefore(card, prev);
+          await saveOrder(currentOrder());
+          window.location.reload();
+        }
+      };
+    });
+    document.querySelectorAll('.move-down').forEach((btn) => {
+      btn.onclick = async () => {
+        const card = btn.closest('.cat-card');
+        const next = card.nextElementSibling;
+        if (next) {
+          card.parentNode.insertBefore(next, card);
+          await saveOrder(currentOrder());
+          window.location.reload();
+        }
+      };
+    });
+  </script>
+</body>
+</html>
