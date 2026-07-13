@@ -312,7 +312,9 @@ export async function saveVariantRow(db, productId, variantId, variantCode, sort
     } else if (existing) {
       await db.prepare('UPDATE variant_attributes SET attr_value = ? WHERE id = ?').bind(value, existing.id).run();
     } else {
-      await db.prepare('INSERT INTO variant_attributes (variant_id, attr_key, attr_value) VALUES (?, ?, ?)').bind(id, key, value).run();
+      // group_key artık field_labels'ta tanımlı — burada otomatik miras alınır, admin ayrıca girmez
+      const field = await db.prepare('SELECT group_key FROM field_labels WHERE attr_key = ?').bind(key).first();
+      await db.prepare('INSERT INTO variant_attributes (variant_id, attr_key, attr_value, group_key) VALUES (?, ?, ?, ?)').bind(id, key, value, field?.group_key || null).run();
     }
   }
   return id;
@@ -326,4 +328,97 @@ export async function deleteVariantRow(db, variantId) {
 export async function reorderVariants(db, ids) {
   const stmts = ids.map((id, i) => db.prepare('UPDATE product_variants SET sort_order = ? WHERE id = ?').bind(i, id));
   await db.batch(stmts);
+}
+
+// ───────────────────────────── TEKNİK ALAN TANIMLARI (field_labels + gruplar) ─────────────────────────────
+
+/** Tüm alanlar, gruplarına göre gruplanmış (grup sırasına, sonra alan sırasına göre). */
+export async function getFieldLabelsGrouped(db) {
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM field_labels
+       ORDER BY (group_sort_order IS NULL), group_sort_order, sort_order`
+    )
+    .all();
+
+  const groups = new Map();
+  for (const f of results) {
+    const key = f.group_key || '(gruplanmamış)';
+    if (!groups.has(key)) {
+      groups.set(key, { group_key: f.group_key, group_label_tr: f.group_label_tr || key, group_label_en: f.group_label_en || key, fields: [] });
+    }
+    groups.get(key).fields.push(f);
+  }
+  return [...groups.values()];
+}
+
+/** "Hangi gruba ait" dropdown'ı için: var olan tüm benzersiz gruplar. */
+export async function getDistinctGroups(db) {
+  const { results } = await db
+    .prepare('SELECT DISTINCT group_key, group_label_tr, group_label_en FROM field_labels WHERE group_key IS NOT NULL ORDER BY group_sort_order')
+    .all();
+  return results;
+}
+
+export async function getFieldLabelByKey(db, attrKey) {
+  return db.prepare('SELECT * FROM field_labels WHERE attr_key = ?').bind(attrKey).first();
+}
+
+export async function isFieldKeyTaken(db, attrKey) {
+  const row = await db.prepare('SELECT attr_key FROM field_labels WHERE attr_key = ?').bind(attrKey).first();
+  return !!row;
+}
+
+/** Bu alan herhangi bir varyantta kullanılıyor mu — silmeden önce güvenlik kontrolü. */
+export async function getFieldUsageCount(db, attrKey) {
+  const row = await db.prepare('SELECT COUNT(*) as n FROM variant_attributes WHERE attr_key = ?').bind(attrKey).first();
+  return row.n;
+}
+
+export async function createFieldLabel(db, data) {
+  // Yeni alan hangi mevcut gruba atandıysa, o grubun group_sort_order'ını miras alır;
+  // tamamen yeni bir grup adıysa, en sona eklenir.
+  let groupSortOrder = null;
+  if (data.group_key) {
+    const existingGroup = await db.prepare('SELECT group_sort_order FROM field_labels WHERE group_key = ? LIMIT 1').bind(data.group_key).first();
+    if (existingGroup) {
+      groupSortOrder = existingGroup.group_sort_order;
+    } else {
+      const maxRow = await db.prepare('SELECT MAX(group_sort_order) as m FROM field_labels').first();
+      groupSortOrder = (maxRow.m ?? -1) + 1;
+    }
+  }
+  const maxSort = await db.prepare('SELECT MAX(sort_order) as m FROM field_labels').first();
+
+  await db
+    .prepare(
+      `INSERT INTO field_labels (attr_key, label_tr, label_en, unit, sort_order, group_key, group_label_tr, group_label_en, group_sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      data.attr_key,
+      data.label_tr,
+      data.label_en || null,
+      data.unit || null,
+      (maxSort.m ?? -1) + 1,
+      data.group_key || null,
+      data.group_key ? (data.group_label_tr || data.group_key) : null,
+      data.group_key ? (data.group_label_en || data.group_key) : null,
+      groupSortOrder
+    )
+    .run();
+}
+
+const FIELD_LABEL_EDITABLE = ['label_tr', 'label_en', 'unit', 'group_key', 'group_label_tr', 'group_label_en'];
+
+export async function updateFieldLabel(db, attrKey, fields) {
+  const keys = Object.keys(fields).filter((k) => FIELD_LABEL_EDITABLE.includes(k));
+  if (keys.length === 0) return;
+  const setClause = keys.map((k) => `${k} = ?`).join(', ');
+  const values = keys.map((k) => fields[k]);
+  await db.prepare(`UPDATE field_labels SET ${setClause} WHERE attr_key = ?`).bind(...values, attrKey).run();
+}
+
+export async function deleteFieldLabel(db, attrKey) {
+  await db.prepare('DELETE FROM field_labels WHERE attr_key = ?').bind(attrKey).run();
 }
