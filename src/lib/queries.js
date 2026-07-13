@@ -332,14 +332,12 @@ export async function reorderVariants(db, ids) {
 
 // ───────────────────────────── TEKNİK ALAN TANIMLARI (field_labels + gruplar) ─────────────────────────────
 
-/** Tüm alanlar, gruplarına göre gruplanmış (grup sırasına, sonra alan sırasına göre). */
-export async function getFieldLabelsGrouped(db) {
-  const { results } = await db
-    .prepare(
-      `SELECT * FROM field_labels
-       ORDER BY (group_sort_order IS NULL), group_sort_order, sort_order`
-    )
-    .all();
+/** Tüm alanlar, gruplarına göre gruplanmış. scope: 'product' | 'variant' | undefined (hepsi). */
+export async function getFieldLabelsGrouped(db, scope) {
+  const sql = scope
+    ? `SELECT * FROM field_labels WHERE scope = ? ORDER BY (group_sort_order IS NULL), group_sort_order, sort_order`
+    : `SELECT * FROM field_labels ORDER BY (group_sort_order IS NULL), group_sort_order, sort_order`;
+  const { results } = scope ? await db.prepare(sql).bind(scope).all() : await db.prepare(sql).all();
 
   const groups = new Map();
   for (const f of results) {
@@ -352,10 +350,11 @@ export async function getFieldLabelsGrouped(db) {
   return [...groups.values()];
 }
 
-/** "Hangi gruba ait" dropdown'ı için: var olan tüm benzersiz gruplar. */
-export async function getDistinctGroups(db) {
+/** "Hangi gruba ait" dropdown'ı için: var olan gruplar, scope'a göre filtrelenmiş. */
+export async function getDistinctGroups(db, scope) {
   const { results } = await db
-    .prepare('SELECT DISTINCT group_key, group_label_tr, group_label_en FROM field_labels WHERE group_key IS NOT NULL ORDER BY group_sort_order')
+    .prepare('SELECT DISTINCT group_key, group_label_tr, group_label_en FROM field_labels WHERE group_key IS NOT NULL AND scope = ? ORDER BY group_sort_order')
+    .bind(scope)
     .all();
   return results;
 }
@@ -376,24 +375,24 @@ export async function getFieldUsageCount(db, attrKey) {
 }
 
 export async function createFieldLabel(db, data) {
-  // Yeni alan hangi mevcut gruba atandıysa, o grubun group_sort_order'ını miras alır;
+  // Yeni alan hangi mevcut gruba atandıysa, o grubun (aynı scope içinde) group_sort_order'ını miras alır;
   // tamamen yeni bir grup adıysa, en sona eklenir.
   let groupSortOrder = null;
   if (data.group_key) {
-    const existingGroup = await db.prepare('SELECT group_sort_order FROM field_labels WHERE group_key = ? LIMIT 1').bind(data.group_key).first();
+    const existingGroup = await db.prepare('SELECT group_sort_order FROM field_labels WHERE group_key = ? AND scope = ? LIMIT 1').bind(data.group_key, data.scope).first();
     if (existingGroup) {
       groupSortOrder = existingGroup.group_sort_order;
     } else {
-      const maxRow = await db.prepare('SELECT MAX(group_sort_order) as m FROM field_labels').first();
+      const maxRow = await db.prepare('SELECT MAX(group_sort_order) as m FROM field_labels WHERE scope = ?').bind(data.scope).first();
       groupSortOrder = (maxRow.m ?? -1) + 1;
     }
   }
-  const maxSort = await db.prepare('SELECT MAX(sort_order) as m FROM field_labels').first();
+  const maxSort = await db.prepare('SELECT MAX(sort_order) as m FROM field_labels WHERE scope = ?').bind(data.scope).first();
 
   await db
     .prepare(
-      `INSERT INTO field_labels (attr_key, label_tr, label_en, unit, sort_order, group_key, group_label_tr, group_label_en, group_sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO field_labels (attr_key, label_tr, label_en, unit, sort_order, group_key, group_label_tr, group_label_en, group_sort_order, scope)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       data.attr_key,
@@ -404,7 +403,8 @@ export async function createFieldLabel(db, data) {
       data.group_key || null,
       data.group_key ? (data.group_label_tr || data.group_key) : null,
       data.group_key ? (data.group_label_en || data.group_key) : null,
-      groupSortOrder
+      groupSortOrder,
+      data.scope
     )
     .run();
 }
@@ -421,4 +421,87 @@ export async function updateFieldLabel(db, attrKey, fields) {
 
 export async function deleteFieldLabel(db, attrKey) {
   await db.prepare('DELETE FROM field_labels WHERE attr_key = ?').bind(attrKey).run();
+}
+
+// ───────────────────────────── KÜNYE / ÜRÜN BİLGİLERİ (product_specs, scope='product') ─────────────────────────────
+
+/**
+ * Bir ürünün künye alanlarını, tanımlı 'product' scope'lu tüm field_labels'a göre getirir
+ * (OZELLIKLER/SPECIAL_NOTE hariç — onlar ayrı, sabit bir bölümde yönetiliyor).
+ * Değeri girilmemiş alanlar da listede boş olarak döner (form'da input olarak gösterilsin diye).
+ */
+export async function getProductKunyeFields(db, productId) {
+  const groups = await getFieldLabelsGrouped(db, 'product');
+  const { results: values } = await db
+    .prepare("SELECT attr_key, value_tr, value_en FROM product_specs WHERE product_id = ? AND attr_key NOT IN ('OZELLIKLER','SPECIAL_NOTE')")
+    .bind(productId)
+    .all();
+  const valueMap = new Map(values.map((v) => [v.attr_key, v]));
+
+  return groups
+    .map((g) => ({
+      ...g,
+      fields: g.fields
+        .filter((f) => f.attr_key !== 'OZELLIKLER' && f.attr_key !== 'SPECIAL_NOTE')
+        .map((f) => ({ ...f, value_tr: valueMap.get(f.attr_key)?.value_tr || '', value_en: valueMap.get(f.attr_key)?.value_en || '' })),
+    }))
+    .filter((g) => g.fields.length > 0);
+}
+
+/** Künyedeki tek bir alanı kaydeder (OZELLIKLER/SPECIAL_NOTE için de kullanılabilir — upsertProductSpec ile aynı mantık). */
+export async function saveProductSpecValue(db, productId, attrKey, valueTr, valueEn) {
+  return upsertProductSpec(db, productId, attrKey, valueTr, valueEn);
+}
+
+// ───────────────────────────── SERTİFİKALAR (product_certificates, ilişki) ─────────────────────────────
+
+export async function getAllCertificatesAdmin(db) {
+  const { results } = await db.prepare('SELECT tag, name FROM certificates ORDER BY name').all();
+  return results;
+}
+
+export async function getProductCertificateTags(db, productId) {
+  const { results } = await db.prepare('SELECT cert_tag FROM product_certificates WHERE product_id = ?').bind(productId).all();
+  return results.map((r) => r.cert_tag);
+}
+
+/** tags: seçili sertifika tag'lerinin tam listesi — mevcut ilişkiler bununla değiştirilir (silinen/eklenen otomatik hesaplanır). */
+export async function saveProductCertificates(db, productId, tags) {
+  await db.prepare('DELETE FROM product_certificates WHERE product_id = ?').bind(productId).run();
+  for (const tag of tags) {
+    await db.prepare('INSERT INTO product_certificates (product_id, cert_tag) VALUES (?, ?)').bind(productId, tag).run();
+  }
+}
+
+// ───────────────────────────── UYUMLU ÜRÜNLER (product_compatibility, çift yönlü ilişki) ─────────────────────────────
+
+export async function searchProductsForCompat(db, query, excludeId) {
+  const { results } = await db
+    .prepare('SELECT id, prod_code, title_tr FROM products WHERE (prod_code LIKE ? OR title_tr LIKE ?) AND id != ? LIMIT 15')
+    .bind(`%${query}%`, `%${query}%`, excludeId)
+    .all();
+  return results;
+}
+
+export async function getProductCompatibilityList(db, productId) {
+  const { results } = await db
+    .prepare(
+      `SELECT p.id, p.prod_code, p.title_tr FROM product_compatibility pcm
+       JOIN products p ON p.id = pcm.compatible_product_id
+       WHERE pcm.product_id = ?`
+    )
+    .bind(productId)
+    .all();
+  return results;
+}
+
+/** Çift yönlü ekler: A->B ve B->A aynı anda oluşturulur, sitedeki mevcut mantıkla tutarlı kalsın diye. */
+export async function addProductCompatibility(db, productId, compatibleId) {
+  await db.prepare('INSERT OR IGNORE INTO product_compatibility (product_id, compatible_product_id) VALUES (?, ?)').bind(productId, compatibleId).run();
+  await db.prepare('INSERT OR IGNORE INTO product_compatibility (product_id, compatible_product_id) VALUES (?, ?)').bind(compatibleId, productId).run();
+}
+
+export async function removeProductCompatibility(db, productId, compatibleId) {
+  await db.prepare('DELETE FROM product_compatibility WHERE product_id = ? AND compatible_product_id = ?').bind(productId, compatibleId).run();
+  await db.prepare('DELETE FROM product_compatibility WHERE product_id = ? AND compatible_product_id = ?').bind(compatibleId, productId).run();
 }
