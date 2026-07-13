@@ -1,0 +1,355 @@
+---
+// src/pages/products/[id].astro
+export const prerender = false;
+
+import { getProductById, getCategoriesAdmin, getProductSpecsAdmin, getFieldLabels, getProductVariantsAdmin } from '../../lib/queries.js';
+import { env } from 'cloudflare:workers';
+
+const db = env.DB;
+const { id } = Astro.params;
+const url = new URL(Astro.request.url);
+const isNew = id === 'new';
+
+let product;
+let specs;
+let variants = [];
+
+if (isNew) {
+  product = {
+    id: null, prod_code: '', title_tr: '', title_en: '', category_id: '',
+    brand: url.searchParams.get('brand') === 'Superpress' ? 'Superpress' : 'Simpa',
+    drawing_ref: '', has_variant_table: 1, is_active: 0,
+  };
+  specs = { ozellikler_tr: '', ozellikler_en: '', special_note_tr: '', special_note_en: '' };
+} else {
+  product = await getProductById(db, Number(id));
+  if (!product) {
+    return new Response('Ürün bulunamadı', { status: 404 });
+  }
+  specs = await getProductSpecsAdmin(db, Number(id));
+  if (product.has_variant_table) {
+    variants = await getProductVariantsAdmin(db, Number(id));
+  }
+}
+
+const categories = await getCategoriesAdmin(db);
+const fieldLabels = (await getFieldLabels(db)).filter((f) => f.attr_key !== 'OZELLIKLER' && f.attr_key !== 'SPECIAL_NOTE');
+
+const val = (v) => v ?? '';
+---
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{isNew ? 'Yeni Ürün' : product.title_tr} — Admin Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 32px 24px 80px; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    h1 { font-size: 20px; }
+    a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
+
+    .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 22px; margin-bottom: 16px; }
+    .section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin-bottom: 14px; }
+    .section-hint { font-size: 12px; color: #9ca3af; margin-top: -8px; margin-bottom: 14px; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+    input[type="text"], select, textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid #d7d9dd; border-radius: 6px; font-size: 13.5px; font-family: inherit; color: #1e2535;
+    }
+    textarea { resize: vertical; min-height: 70px; }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+    .toggle-row + .toggle-row { border-top: 1px solid #f1f2f4; margin-top: 8px; padding-top: 12px; }
+    .toggle-label { font-size: 13.5px; font-weight: 600; }
+    .toggle-desc { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 1; }
+    .switch .track { position: absolute; inset: 0; background: #d1d5db; border-radius: 20px; transition: .15s; }
+    .switch .thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    .switch input:checked + .track { background: #1e2535; }
+    .switch input:checked ~ .thumb { transform: translateX(16px); }
+
+    .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e5e7eb; padding: 14px 24px; display: flex; justify-content: center; z-index: 10; }
+    .save-bar-in { max-width: 1100px; width: 100%; display: flex; gap: 10px; align-items: center; }
+    .btn-save { background: #1e2535; color: #fff; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 6px; border: none; cursor: pointer; }
+    .btn-save:disabled { opacity: .6; cursor: default; }
+    .save-msg { font-size: 13px; color: #22c55e; font-weight: 600; }
+    .save-err { font-size: 13px; color: #b91c1c; font-weight: 600; }
+    .btn-delete-product { margin-left: auto; font-size: 13px; color: #b91c1c; background: none; border: 1px solid #f3d1d1; border-radius: 6px; padding: 9px 16px; cursor: pointer; }
+
+    .variant-note { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
+    .table-scroll { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+    table.vtable { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+    table.vtable th { text-align: left; background: #f4f5f7; padding: 8px 10px; font-weight: 600; color: #4a5568; white-space: nowrap; border-bottom: 1px solid #e5e7eb; }
+    table.vtable td { padding: 4px 6px; border-bottom: 1px solid #f1f2f4; }
+    table.vtable input { width: 100%; min-width: 80px; padding: 5px 7px; border: 1px solid transparent; border-radius: 4px; font-size: 12.5px; font-family: inherit; background: transparent; }
+    table.vtable input:focus { border-color: #1e5fa8; background: #fff; outline: none; }
+    table.vtable input.code-input { min-width: 120px; font-family: ui-monospace, monospace; font-weight: 600; }
+    .row-actions { display: flex; gap: 4px; white-space: nowrap; }
+    .row-save { font-size: 11px; font-weight: 600; color: #1e5fa8; background: #eff6ff; border: none; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
+    .row-del { font-size: 11px; font-weight: 600; color: #b91c1c; background: #fef2f2; border: none; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
+    .row-dirty td { background: #fffbeb; }
+    .add-row-btn { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: #1e2535; background: #f4f5f7; border: 1px solid #d7d9dd; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <h1>{isNew ? 'Yeni Ürün' : product.title_tr}</h1>
+      <a class="back" href="/products">← Listeye dön</a>
+    </div>
+
+    <form id="prodForm">
+      <input type="hidden" name="id" value={val(product.id)} />
+
+      <div class="section">
+        <h2>Temel Bilgiler</h2>
+        <div class="row2">
+          <div class="field"><label>Ürün Kodu *</label><input type="text" name="prod_code" value={val(product.prod_code)} required /></div>
+          <div class="field">
+            <label>Marka *</label>
+            <select name="brand">
+              <option value="Simpa" selected={product.brand === 'Simpa'}>Simpa</option>
+              <option value="Superpress" selected={product.brand === 'Superpress'}>Superpress</option>
+            </select>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Başlık (TR) *</label><input type="text" name="title_tr" value={val(product.title_tr)} required /></div>
+          <div class="field"><label>Başlık (EN)</label><input type="text" name="title_en" value={val(product.title_en)} /></div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Kategori</label>
+            <select name="category_id">
+              <option value="">Seçiniz</option>
+              {categories.map((c) => <option value={c.id} selected={product.category_id === c.id}>{c.name_tr}</option>)}
+            </select>
+          </div>
+          <div class="field"><label>Teknik Çizim Referansı</label><input type="text" name="drawing_ref" value={val(product.drawing_ref)} /></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">Aktif</div><div class="toggle-desc">Kapalıysa sitede hiç görünmez.</div></div>
+          <label class="switch"><input type="checkbox" name="is_active" checked={!!product.is_active} /><span class="track"></span><span class="thumb"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">Varyant Tablosu Kullansın</div><div class="toggle-desc">Kapalıysa bu ürün tekil bir SKU'dur, aşağıdaki teknik veri tablosu hiç gösterilmez.</div></div>
+          <label class="switch"><input type="checkbox" name="has_variant_table" checked={!!product.has_variant_table} /><span class="track"></span><span class="thumb"></span></label>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Açıklama</h2>
+        <div class="row2">
+          <div class="field"><label>Ürün Açıklaması (TR)</label><textarea name="ozellikler_tr">{val(specs.ozellikler_tr)}</textarea></div>
+          <div class="field"><label>Ürün Açıklaması (EN)</label><textarea name="ozellikler_en">{val(specs.ozellikler_en)}</textarea></div>
+        </div>
+        <div class="row2" style="margin-top:14px">
+          <div class="field"><label>Özel Not (TR) <span style="font-weight:400;color:#9ca3af">— künye altında sarı kutuda çıkar</span></label><textarea name="special_note_tr">{val(specs.special_note_tr)}</textarea></div>
+          <div class="field"><label>Özel Not (EN)</label><textarea name="special_note_en">{val(specs.special_note_en)}</textarea></div>
+        </div>
+      </div>
+    </form>
+
+    {!isNew && !!product.has_variant_table && (
+      <div class="section">
+        <h2>Teknik Veri — Varyantlar</h2>
+        <div class="variant-note">Her satır ayrı kaydedilir — bir satırı değiştirdikten sonra o satırın "Kaydet"ine bas. Excel ile toplu düzenleme yakında eklenecek.</div>
+        <div class="table-scroll">
+          <table class="vtable" id="vtable">
+            <thead>
+              <tr>
+                <th>Varyant Kodu</th>
+                {fieldLabels.map((f) => <th>{f.label_tr}{f.unit && ` (${f.unit})`}</th>)}
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="vtableBody">
+              {variants.map((v) => (
+                <tr data-variant-id={v.id}>
+                  <td><input type="text" class="code-input" value={v.variant_code} data-field="__code" /></td>
+                  {fieldLabels.map((f) => <td><input type="text" value={v.values[f.attr_key] || ''} data-field={f.attr_key} /></td>)}
+                  <td class="row-actions">
+                    <button type="button" class="row-save">Kaydet</button>
+                    <button type="button" class="row-del">Sil</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" class="add-row-btn" id="addRowBtn">+ Yeni Varyant Satırı</button>
+      </div>
+    )}
+
+    {isNew && (
+      <p style="font-size:13px;color:#9ca3af;text-align:center;margin-top:8px">Teknik veri tablosunu düzenlemek için önce ürünü bir kez kaydet.</p>
+    )}
+  </div>
+
+  <div class="save-bar">
+    <div class="save-bar-in">
+      <button type="button" class="btn-save" id="saveBtn">Kaydet</button>
+      <span class="save-msg" id="saveMsg" style="display:none">Kaydedildi</span>
+      <span class="save-err" id="saveErr" style="display:none"></span>
+      {!isNew && <button type="button" class="btn-delete-product" id="deleteProductBtn">Ürünü Sil</button>}
+    </div>
+  </div>
+
+  <script define:vars={{ productId: product.id, fieldKeys: fieldLabels.map((f) => f.attr_key) }}>
+    // Ürün temel bilgi + açıklama kaydet
+    const saveBtn = document.getElementById('saveBtn');
+    const saveMsg = document.getElementById('saveMsg');
+    const saveErr = document.getElementById('saveErr');
+    saveBtn.addEventListener('click', async () => {
+      saveMsg.style.display = 'none';
+      saveErr.style.display = 'none';
+
+      const form = document.getElementById('prodForm');
+      const prodCode = form.querySelector('[name="prod_code"]').value.trim();
+      const titleTr = form.querySelector('[name="title_tr"]').value.trim();
+      if (!prodCode || !titleTr) {
+        saveErr.textContent = 'Ürün kodu ve Türkçe başlık zorunlu.';
+        saveErr.style.display = 'inline';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Kaydediliyor…';
+
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData.entries());
+      payload.is_active = form.querySelector('[name="is_active"]').checked;
+      payload.has_variant_table = form.querySelector('[name="has_variant_table"]').checked;
+
+      try {
+        const res = await fetch('/api/products/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Kaydedilemedi.');
+        saveMsg.style.display = 'inline';
+        if (!productId) {
+          window.location.href = `/products/${data.id}`;
+        }
+      } catch (err) {
+        saveErr.textContent = err.message || 'Kaydedilemedi.';
+        saveErr.style.display = 'inline';
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Kaydet';
+      }
+    });
+
+    document.getElementById('deleteProductBtn')?.addEventListener('click', async () => {
+      if (!confirm('Bu ürün ve tüm varyant/teknik verisi silinsin mi? Bu işlem geri alınamaz.')) return;
+      const res = await fetch('/api/products/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: productId }),
+      });
+      if (res.ok) {
+        window.location.href = '/products';
+      } else {
+        alert('Silinemedi, tekrar dene.');
+      }
+    });
+
+    // Varyant tablosu satır kaydetme/silme
+    function readRow(tr) {
+      const inputs = tr.querySelectorAll('input');
+      let code = '';
+      const values = {};
+      inputs.forEach((input) => {
+        if (input.dataset.field === '__code') code = input.value.trim();
+        else values[input.dataset.field] = input.value.trim();
+      });
+      return { code, values };
+    }
+
+    function attachRowHandlers(tr) {
+      tr.querySelector('.row-save').addEventListener('click', async () => {
+        const btn = tr.querySelector('.row-save');
+        const { code, values } = readRow(tr);
+        if (!code) {
+          alert('Varyant kodu boş olamaz.');
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = '…';
+        try {
+          const res = await fetch('/api/products/save-variant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              productId,
+              variantId: tr.dataset.variantId || null,
+              variantCode: code,
+              sortOrder: Array.from(tr.parentNode.children).indexOf(tr),
+              values,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Kaydedilemedi.');
+          tr.dataset.variantId = data.id;
+          tr.classList.remove('row-dirty');
+          btn.textContent = 'Kaydet';
+        } catch (err) {
+          alert(err.message || 'Kaydedilemedi.');
+          btn.textContent = 'Kaydet';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      tr.querySelector('.row-del').addEventListener('click', async () => {
+        if (!tr.dataset.variantId) {
+          tr.remove();
+          return;
+        }
+        if (!confirm('Bu varyant satırı silinsin mi?')) return;
+        const res = await fetch('/api/products/delete-variant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: tr.dataset.variantId }),
+        });
+        if (res.ok) {
+          tr.remove();
+        } else {
+          alert('Silinemedi, tekrar dene.');
+        }
+      });
+
+      tr.querySelectorAll('input').forEach((input) => {
+        input.addEventListener('input', () => tr.classList.add('row-dirty'));
+      });
+    }
+
+    document.querySelectorAll('#vtableBody tr').forEach(attachRowHandlers);
+
+    document.getElementById('addRowBtn')?.addEventListener('click', () => {
+      const tbody = document.getElementById('vtableBody');
+      const tr = document.createElement('tr');
+      tr.classList.add('row-dirty');
+      let html = `<td><input type="text" class="code-input" data-field="__code" placeholder="Yeni kod"></td>`;
+      fieldKeys.forEach((key) => {
+        html += `<td><input type="text" data-field="${key}"></td>`;
+      });
+      html += `<td class="row-actions"><button type="button" class="row-save">Kaydet</button><button type="button" class="row-del">Sil</button></td>`;
+      tr.innerHTML = html;
+      tbody.appendChild(tr);
+      attachRowHandlers(tr);
+      tr.querySelector('.code-input').focus();
+    });
+  </script>
+</body>
+</html>
