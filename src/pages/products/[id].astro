@@ -2,7 +2,17 @@
 // src/pages/products/[id].astro
 export const prerender = false;
 
-import { getProductById, getCategoriesAdmin, getProductSpecsAdmin, getFieldLabelsGrouped, getProductVariantsAdmin } from '../../lib/queries.js';
+import {
+  getProductById,
+  getCategoriesAdmin,
+  getProductSpecsAdmin,
+  getFieldLabelsGrouped,
+  getProductVariantsAdmin,
+  getProductKunyeFields,
+  getAllCertificatesAdmin,
+  getProductCertificateTags,
+  getProductCompatibilityList,
+} from '../../lib/queries.js';
 import { env } from 'cloudflare:workers';
 
 const db = env.DB;
@@ -13,6 +23,10 @@ const isNew = id === 'new';
 let product;
 let specs;
 let variants = [];
+let kunyeGroups = [];
+let allCertificates = [];
+let selectedCertTags = [];
+let compatList = [];
 
 if (isNew) {
   product = {
@@ -27,13 +41,17 @@ if (isNew) {
     return new Response('Ürün bulunamadı', { status: 404 });
   }
   specs = await getProductSpecsAdmin(db, Number(id));
+  kunyeGroups = await getProductKunyeFields(db, Number(id));
+  allCertificates = await getAllCertificatesAdmin(db);
+  selectedCertTags = await getProductCertificateTags(db, Number(id));
+  compatList = await getProductCompatibilityList(db, Number(id));
   if (product.has_variant_table) {
     variants = await getProductVariantsAdmin(db, Number(id));
   }
 }
 
 const categories = await getCategoriesAdmin(db);
-const fieldGroups = (await getFieldLabelsGrouped(db))
+const fieldGroups = (await getFieldLabelsGrouped(db, 'variant'))
   .map((g) => ({ ...g, fields: g.fields.filter((f) => f.attr_key !== 'OZELLIKLER' && f.attr_key !== 'SPECIAL_NOTE') }))
   .filter((g) => g.fields.length > 0);
 const fieldLabels = fieldGroups.flatMap((g) => g.fields);
@@ -160,6 +178,63 @@ const val = (v) => v ?? '';
         </div>
       </div>
     </form>
+
+    {!isNew && kunyeGroups.length > 0 && (
+      <div class="section">
+        <h2>Künye / Ürün Bilgileri</h2>
+        <p class="section-hint">Ürün başına tek değer, künye kutusunda görünür. Yeni alan eklemek için <a href="/fields" target="_blank" style="color:#1e5fa8">Teknik Alan Tanımları</a>'na git.</p>
+        {kunyeGroups.map((g) => (
+          <div style="margin-bottom:18px">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;margin-bottom:8px">{g.group_label_tr}</div>
+            {g.fields.map((f) => (
+              <div class="kunye-row" data-key={f.attr_key} style="display:grid;grid-template-columns:140px 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:6px">
+                <label style="font-size:12.5px;color:#374151">{f.label_tr}{f.unit && ` (${f.unit})`}</label>
+                <input type="text" data-field="value_tr" value={f.value_tr} placeholder="TR" />
+                <input type="text" data-field="value_en" value={f.value_en} placeholder="EN" />
+                <button type="button" class="kunye-save row-save">Kaydet</button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    )}
+
+    {!isNew && (
+      <div class="section">
+        <h2>Sertifikalar</h2>
+        <p class="section-hint">Bu ürüne uygulanan sertifikaları işaretle.</p>
+        <div id="certList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+          {allCertificates.map((c) => (
+            <label style="display:flex;align-items:center;gap:8px;font-size:13.5px">
+              <input type="checkbox" value={c.tag} checked={selectedCertTags.includes(c.tag)} />
+              {c.name}
+            </label>
+          ))}
+        </div>
+        <button type="button" class="btn-save" id="saveCertsBtn" style="padding:8px 16px;font-size:13px">Sertifikaları Kaydet</button>
+        <span class="save-msg" id="certMsg" style="display:none;margin-left:8px">Kaydedildi</span>
+      </div>
+    )}
+
+    {!isNew && (
+      <div class="section">
+        <h2>Uyumlu Ürünler</h2>
+        <p class="section-hint">Bu ürünle uyumlu diğer ürünleri ara ve ekle. İki yönlü kaydedilir (o üründe de bu görünür).</p>
+        <div style="position:relative;margin-bottom:14px">
+          <input type="text" id="compatSearch" placeholder="Ürün kodu veya isim ara..." style="width:100%;padding:9px 12px;border:1px solid #d7d9dd;border-radius:6px;font-size:13.5px" />
+          <div id="compatResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:6px;margin-top:4px;max-height:220px;overflow-y:auto;z-index:5;box-shadow:0 4px 12px rgba(0,0,0,.08)"></div>
+        </div>
+        <div id="compatList" style="display:flex;flex-direction:column;gap:6px">
+          {compatList.map((p) => (
+            <div class="compat-item" data-id={p.id} style="display:flex;align-items:center;justify-content:space-between;background:#f4f5f7;padding:8px 12px;border-radius:6px;font-size:13px">
+              <span><strong>{p.prod_code}</strong> — {p.title_tr}</span>
+              <button type="button" class="compat-remove" style="font-size:11px;color:#b91c1c;background:none;border:none;cursor:pointer">Kaldır</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
 
     {!isNew && !!product.has_variant_table && (
       <div class="section">
@@ -360,6 +435,127 @@ const val = (v) => v ?? '';
       attachRowHandlers(tr);
       tr.querySelector('.code-input').focus();
     });
+
+    // Künye alanları — her satır kendi kaydet butonuyla
+    document.querySelectorAll('.kunye-row').forEach((row) => {
+      const attrKey = row.dataset.key;
+      row.querySelector('.kunye-save').addEventListener('click', async (e) => {
+        const btn = e.target;
+        const valueTr = row.querySelector('[data-field="value_tr"]').value;
+        const valueEn = row.querySelector('[data-field="value_en"]').value;
+        btn.disabled = true;
+        btn.textContent = '…';
+        try {
+          const res = await fetch('/api/products/save-kunye-field', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId, attrKey, valueTr, valueEn }),
+          });
+          if (!res.ok) throw new Error();
+          btn.textContent = 'Kaydedildi ✓';
+          setTimeout(() => { btn.textContent = 'Kaydet'; }, 1500);
+        } catch {
+          alert('Kaydedilemedi, tekrar dene.');
+          btn.textContent = 'Kaydet';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Sertifikalar — tek buton, tüm işaretli kutuları gönderir
+    document.getElementById('saveCertsBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('saveCertsBtn');
+      const certMsg = document.getElementById('certMsg');
+      const tags = Array.from(document.querySelectorAll('#certList input:checked')).map((cb) => cb.value);
+      btn.disabled = true;
+      btn.textContent = 'Kaydediliyor…';
+      try {
+        const res = await fetch('/api/products/save-certificates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId, tags }),
+        });
+        if (!res.ok) throw new Error();
+        certMsg.style.display = 'inline';
+        setTimeout(() => { certMsg.style.display = 'none'; }, 2000);
+      } catch {
+        alert('Kaydedilemedi, tekrar dene.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sertifikaları Kaydet';
+      }
+    });
+
+    // Uyumlu ürünler — ara, ekle, kaldır
+    const compatSearch = document.getElementById('compatSearch');
+    const compatResults = document.getElementById('compatResults');
+    const compatListEl = document.getElementById('compatList');
+    let searchTimer;
+
+    compatSearch?.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const q = compatSearch.value.trim();
+      if (q.length < 2) {
+        compatResults.style.display = 'none';
+        return;
+      }
+      searchTimer = setTimeout(async () => {
+        const res = await fetch(`/api/products/search?q=${encodeURIComponent(q)}&exclude=${productId}`);
+        const data = await res.json();
+        const existingIds = Array.from(compatListEl.querySelectorAll('.compat-item')).map((el) => el.dataset.id);
+        const filtered = (data.results || []).filter((p) => !existingIds.includes(String(p.id)));
+        if (filtered.length === 0) {
+          compatResults.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:#9ca3af">Sonuç yok</div>';
+        } else {
+          compatResults.innerHTML = filtered
+            .map((p) => `<div class="compat-result" data-id="${p.id}" data-code="${p.prod_code}" data-title="${p.title_tr}" style="padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #f1f2f4"><strong>${p.prod_code}</strong> — ${p.title_tr}</div>`)
+            .join('');
+        }
+        compatResults.style.display = 'block';
+      }, 250);
+    });
+
+    compatResults?.addEventListener('click', async (e) => {
+      const item = e.target.closest('.compat-result');
+      if (!item) return;
+      const compatibleId = item.dataset.id;
+      const res = await fetch('/api/products/add-compat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, compatibleId }),
+      });
+      if (res.ok) {
+        const row = document.createElement('div');
+        row.className = 'compat-item';
+        row.dataset.id = compatibleId;
+        row.style = 'display:flex;align-items:center;justify-content:space-between;background:#f4f5f7;padding:8px 12px;border-radius:6px;font-size:13px';
+        row.innerHTML = `<span><strong>${item.dataset.code}</strong> — ${item.dataset.title}</span><button type="button" class="compat-remove" style="font-size:11px;color:#b91c1c;background:none;border:none;cursor:pointer">Kaldır</button>`;
+        compatListEl.appendChild(row);
+        attachCompatRemove(row);
+        compatSearch.value = '';
+        compatResults.style.display = 'none';
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#compatSearch') && !e.target.closest('#compatResults')) {
+        compatResults.style.display = 'none';
+      }
+    });
+
+    function attachCompatRemove(row) {
+      row.querySelector('.compat-remove').addEventListener('click', async () => {
+        const compatibleId = row.dataset.id;
+        const res = await fetch('/api/products/remove-compat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId, compatibleId }),
+        });
+        if (res.ok) row.remove();
+      });
+    }
+    document.querySelectorAll('.compat-item').forEach(attachCompatRemove);
   </script>
 </body>
 </html>
