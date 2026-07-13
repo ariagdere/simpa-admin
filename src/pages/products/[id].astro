@@ -2,7 +2,7 @@
 // src/pages/products/[id].astro
 export const prerender = false;
 
-import { getProductById, getCategoriesAdmin, getProductSpecsAdmin, getFieldLabels, getProductVariantsAdmin } from '../../lib/queries.js';
+import { getProductById, getCategoriesAdmin, getProductSpecsAdmin, getFieldLabelsGrouped, getProductVariantsAdmin } from '../../lib/queries.js';
 import { env } from 'cloudflare:workers';
 
 const db = env.DB;
@@ -33,7 +33,10 @@ if (isNew) {
 }
 
 const categories = await getCategoriesAdmin(db);
-const fieldLabels = (await getFieldLabels(db)).filter((f) => f.attr_key !== 'OZELLIKLER' && f.attr_key !== 'SPECIAL_NOTE');
+const fieldGroups = (await getFieldLabelsGrouped(db))
+  .map((g) => ({ ...g, fields: g.fields.filter((f) => f.attr_key !== 'OZELLIKLER' && f.attr_key !== 'SPECIAL_NOTE') }))
+  .filter((g) => g.fields.length > 0);
+const fieldLabels = fieldGroups.flatMap((g) => g.fields);
 
 const val = (v) => v ?? '';
 ---
@@ -161,14 +164,21 @@ const val = (v) => v ?? '';
     {!isNew && !!product.has_variant_table && (
       <div class="section">
         <h2>Teknik Veri — Varyantlar</h2>
-        <div class="variant-note">Her satır ayrı kaydedilir — bir satırı değiştirdikten sonra o satırın "Kaydet"ine bas. Excel ile toplu düzenleme yakında eklenecek.</div>
+        <div class="variant-note">Her satır ayrı kaydedilir — bir satırı değiştirdikten sonra o satırın "Kaydet"ine bas. Excel ile toplu düzenleme yakında eklenecek. Yeni bir sütun/alan eklemek için <a href="/fields" target="_blank" style="color:#1e5fa8">Teknik Alan Tanımları</a>'na git.</div>
         <div class="table-scroll">
           <table class="vtable" id="vtable">
             <thead>
               <tr>
-                <th>Varyant Kodu</th>
-                {fieldLabels.map((f) => <th>{f.label_tr}{f.unit && ` (${f.unit})`}</th>)}
-                <th></th>
+                <th rowspan="2">Varyant Kodu</th>
+                {fieldGroups.map((g) => (
+                  g.group_key
+                    ? <th colspan={g.fields.length} style="text-align:center;border-bottom:1px solid #e5e7eb">{g.group_label_tr}</th>
+                    : g.fields.map((f) => <th rowspan="2">{f.label_tr}{f.unit && ` (${f.unit})`}</th>)
+                ))}
+                <th rowspan="2"></th>
+              </tr>
+              <tr>
+                {fieldGroups.map((g) => g.group_key && g.fields.map((f) => <th>{f.label_tr}{f.unit && ` (${f.unit})`}</th>))}
               </tr>
             </thead>
             <tbody id="vtableBody">
