@@ -186,3 +186,144 @@ export async function reorderCategories(db, ids) {
   const stmts = ids.map((id, i) => db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?').bind(i, id));
   await db.batch(stmts);
 }
+
+// ───────────────────────────── PRODUCTS ─────────────────────────────
+
+export async function getProductsAdmin(db, { brand, categoryId, search } = {}) {
+  let sql = `SELECT p.*, c.name_tr as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE 1=1`;
+  const params = [];
+  if (brand) { sql += ' AND p.brand = ?'; params.push(brand); }
+  if (categoryId) { sql += ' AND p.category_id = ?'; params.push(Number(categoryId)); }
+  if (search) { sql += ' AND (p.prod_code LIKE ? OR p.title_tr LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
+  sql += ' ORDER BY p.sort_order';
+  const { results } = await db.prepare(sql).bind(...params).all();
+  return results;
+}
+
+export async function getProductById(db, id) {
+  return db.prepare('SELECT * FROM products WHERE id = ?').bind(id).first();
+}
+
+export async function isProdCodeTaken(db, prodCode, excludeId) {
+  const row = await db.prepare('SELECT id FROM products WHERE prod_code = ? AND id != ?').bind(prodCode, excludeId || -1).first();
+  return !!row;
+}
+
+export async function createProduct(db, brand) {
+  const { meta } = await db
+    .prepare(
+      `INSERT INTO products (prod_code, title_tr, brand, is_active, has_variant_table, sort_order)
+       VALUES (?, ?, ?, 0, 1, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM products))`
+    )
+    .bind(`YENI-${Date.now().toString().slice(-6)}`, 'Yeni Ürün', brand || 'Simpa')
+    .run();
+  return meta.last_row_id;
+}
+
+const PRODUCT_FIELDS = ['prod_code', 'title_tr', 'title_en', 'category_id', 'brand', 'drawing_ref', 'has_variant_table', 'is_active', 'sort_order'];
+
+export async function updateProduct(db, id, fields) {
+  const keys = Object.keys(fields).filter((k) => PRODUCT_FIELDS.includes(k));
+  if (keys.length === 0) return;
+  const setClause = keys.map((k) => `${k} = ?`).join(', ');
+  const values = keys.map((k) => fields[k]);
+  await db.prepare(`UPDATE products SET ${setClause} WHERE id = ?`).bind(...values, id).run();
+}
+
+/** Ürünü ve ona bağlı TÜM ilişkili veriyi (varyant, özellik, görsel, sertifika, uyumluluk) siler. */
+export async function deleteProduct(db, id) {
+  const { results: variants } = await db.prepare('SELECT id FROM product_variants WHERE product_id = ?').bind(id).all();
+  for (const v of variants) {
+    await db.prepare('DELETE FROM variant_attributes WHERE variant_id = ?').bind(v.id).run();
+  }
+  await db.prepare('DELETE FROM product_variants WHERE product_id = ?').bind(id).run();
+  await db.prepare('DELETE FROM product_specs WHERE product_id = ?').bind(id).run();
+  await db.prepare('DELETE FROM product_images WHERE product_id = ?').bind(id).run();
+  await db.prepare('DELETE FROM product_certificates WHERE product_id = ?').bind(id).run();
+  await db.prepare('DELETE FROM product_compatibility WHERE product_id = ? OR compatible_product_id = ?').bind(id, id).run();
+  await db.prepare('DELETE FROM products WHERE id = ?').bind(id).run();
+}
+
+// ───────────────────────────── PRODUCT SPECS (Açıklama / Özel Not) ─────────────────────────────
+
+export async function getProductSpecsAdmin(db, productId) {
+  const { results } = await db
+    .prepare("SELECT attr_key, value_tr, value_en FROM product_specs WHERE product_id = ? AND attr_key IN ('OZELLIKLER','SPECIAL_NOTE')")
+    .bind(productId)
+    .all();
+  const byKey = Object.fromEntries(results.map((r) => [r.attr_key, r]));
+  return {
+    ozellikler_tr: byKey.OZELLIKLER?.value_tr || '',
+    ozellikler_en: byKey.OZELLIKLER?.value_en || '',
+    special_note_tr: byKey.SPECIAL_NOTE?.value_tr || '',
+    special_note_en: byKey.SPECIAL_NOTE?.value_en || '',
+  };
+}
+
+export async function upsertProductSpec(db, productId, attrKey, valueTr, valueEn) {
+  const existing = await db.prepare('SELECT id FROM product_specs WHERE product_id = ? AND attr_key = ?').bind(productId, attrKey).first();
+  if (!valueTr && !valueEn) {
+    if (existing) await db.prepare('DELETE FROM product_specs WHERE id = ?').bind(existing.id).run();
+    return;
+  }
+  if (existing) {
+    await db.prepare('UPDATE product_specs SET value_tr = ?, value_en = ? WHERE id = ?').bind(valueTr || null, valueEn || null, existing.id).run();
+  } else {
+    await db.prepare('INSERT INTO product_specs (product_id, attr_key, value_tr, value_en) VALUES (?, ?, ?, ?)').bind(productId, attrKey, valueTr || null, valueEn || null).run();
+  }
+}
+
+// ───────────────────────────── VARYANT / TEKNİK VERİ (EAV) ─────────────────────────────
+
+export async function getFieldLabels(db) {
+  const { results } = await db.prepare('SELECT attr_key, label_tr, label_en, unit, sort_order FROM field_labels ORDER BY sort_order').all();
+  return results;
+}
+
+/** Bir ürünün tüm varyantları + her birinin teknik özellik değerleri, düzenleme için düz obje halinde. */
+export async function getProductVariantsAdmin(db, productId) {
+  const { results: variants } = await db.prepare('SELECT id, variant_code, sort_order FROM product_variants WHERE product_id = ? ORDER BY sort_order').bind(productId).all();
+  if (variants.length === 0) return [];
+  const variantIds = variants.map((v) => v.id);
+  const placeholders = variantIds.map(() => '?').join(',');
+  const { results: attrs } = await db.prepare(`SELECT variant_id, attr_key, attr_value FROM variant_attributes WHERE variant_id IN (${placeholders})`).bind(...variantIds).all();
+
+  const byVariant = new Map(variants.map((v) => [v.id, { ...v, values: {} }]));
+  for (const a of attrs) {
+    byVariant.get(a.variant_id).values[a.attr_key] = a.attr_value;
+  }
+  return [...byVariant.values()];
+}
+
+/** Tek bir varyant satırını (kod + tüm özellik değerleri) kaydeder — yoksa oluşturur. */
+export async function saveVariantRow(db, productId, variantId, variantCode, sortOrder, values) {
+  let id = variantId;
+  if (!id) {
+    const { meta } = await db.prepare('INSERT INTO product_variants (product_id, variant_code, sort_order) VALUES (?, ?, ?)').bind(productId, variantCode, sortOrder).run();
+    id = meta.last_row_id;
+  } else {
+    await db.prepare('UPDATE product_variants SET variant_code = ?, sort_order = ? WHERE id = ?').bind(variantCode, sortOrder, id).run();
+  }
+
+  for (const [key, value] of Object.entries(values)) {
+    const existing = await db.prepare('SELECT id FROM variant_attributes WHERE variant_id = ? AND attr_key = ?').bind(id, key).first();
+    if (value === '' || value == null) {
+      if (existing) await db.prepare('DELETE FROM variant_attributes WHERE id = ?').bind(existing.id).run();
+    } else if (existing) {
+      await db.prepare('UPDATE variant_attributes SET attr_value = ? WHERE id = ?').bind(value, existing.id).run();
+    } else {
+      await db.prepare('INSERT INTO variant_attributes (variant_id, attr_key, attr_value) VALUES (?, ?, ?)').bind(id, key, value).run();
+    }
+  }
+  return id;
+}
+
+export async function deleteVariantRow(db, variantId) {
+  await db.prepare('DELETE FROM variant_attributes WHERE variant_id = ?').bind(variantId).run();
+  await db.prepare('DELETE FROM product_variants WHERE id = ?').bind(variantId).run();
+}
+
+export async function reorderVariants(db, ids) {
+  const stmts = ids.map((id, i) => db.prepare('UPDATE product_variants SET sort_order = ? WHERE id = ?').bind(i, id));
+  await db.batch(stmts);
+}
