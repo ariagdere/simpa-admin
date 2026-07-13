@@ -335,6 +335,38 @@ export async function getVariantByCode(db, productId, variantCode) {
   return db.prepare('SELECT id FROM product_variants WHERE product_id = ? AND variant_code = ?').bind(productId, variantCode).first();
 }
 
+// ───────────────────────────── GÖRSEL GALERİSİ (product_images) ─────────────────────────────
+
+export async function getProductImages(db, productId) {
+  const { results } = await db.prepare('SELECT id, file_url, is_primary, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order').bind(productId).all();
+  return results;
+}
+
+export async function addProductImage(db, productId, fileUrl) {
+  const maxSort = await db.prepare('SELECT MAX(sort_order) as m FROM product_images WHERE product_id = ?').bind(productId).first();
+  const isFirst = (await db.prepare('SELECT COUNT(*) as n FROM product_images WHERE product_id = ?').bind(productId).first()).n === 0;
+  const { meta } = await db
+    .prepare('INSERT INTO product_images (product_id, file_url, is_primary, sort_order) VALUES (?, ?, ?, ?)')
+    .bind(productId, fileUrl, isFirst ? 1 : 0, (maxSort.m ?? -1) + 1)
+    .run();
+  return meta.last_row_id;
+}
+
+export async function deleteProductImage(db, imageId) {
+  await db.prepare('DELETE FROM product_images WHERE id = ?').bind(imageId).run();
+}
+
+/** Bu görseli ana görsel yapar, aynı üründeki diğer tüm görsellerin ana görsel işaretini kaldırır. */
+export async function setProductImagePrimary(db, productId, imageId) {
+  await db.prepare('UPDATE product_images SET is_primary = 0 WHERE product_id = ?').bind(productId).run();
+  await db.prepare('UPDATE product_images SET is_primary = 1 WHERE id = ?').bind(imageId).run();
+}
+
+export async function reorderProductImages(db, ids) {
+  const stmts = ids.map((id, i) => db.prepare('UPDATE product_images SET sort_order = ? WHERE id = ?').bind(i, id));
+  await db.batch(stmts);
+}
+
 // ───────────────────────────── TEKNİK ALAN TANIMLARI (field_labels + gruplar) ─────────────────────────────
 
 /** Tüm alanlar, gruplarına göre gruplanmış. scope: 'product' | 'variant' | undefined (hepsi). */
