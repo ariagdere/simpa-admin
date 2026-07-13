@@ -28,6 +28,7 @@ export async function POST({ request }) {
 
     if (isNew) {
       const attrKey = (body.attr_key || '').trim() || slugify(labelTr);
+      const scope = body.scope === 'product' ? 'product' : 'variant';
       if (!attrKey) {
         return new Response(JSON.stringify({ error: 'Alan anahtarı oluşturulamadı.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
       }
@@ -42,6 +43,7 @@ export async function POST({ request }) {
         group_key: body.group_key || null,
         group_label_tr: body.group_label_tr,
         group_label_en: body.group_label_en,
+        scope,
       });
       return new Response(JSON.stringify({ success: true, attr_key: attrKey }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     } else {
