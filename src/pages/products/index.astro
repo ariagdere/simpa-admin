@@ -1,0 +1,123 @@
+---
+// src/pages/products/index.astro
+export const prerender = false;
+
+import { getProductsAdmin, getCategoriesAdmin } from '../../lib/queries.js';
+import { env } from 'cloudflare:workers';
+
+const db = env.DB;
+const url = new URL(Astro.request.url);
+const brand = url.searchParams.get('brand') || '';
+const categoryId = url.searchParams.get('category') || '';
+const search = url.searchParams.get('q') || '';
+
+const [products, categories] = await Promise.all([
+  getProductsAdmin(db, { brand: brand || undefined, categoryId: categoryId || undefined, search: search || undefined }),
+  getCategoriesAdmin(db),
+]);
+---
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ürünler — Admin Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 32px 24px; }
+    .wrap { max-width: 1000px; margin: 0 auto; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    h1 { font-size: 20px; }
+    a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
+
+    .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filters select, .filters input { padding: 7px 10px; border: 1px solid #d7d9dd; border-radius: 6px; font-size: 13px; font-family: inherit; background: #fff; }
+    .filters input { flex: 1; min-width: 180px; }
+
+    .add-btn { display: inline-block; background: #1e2535; color: #fff; font-size: 13.5px; font-weight: 600; padding: 9px 16px; border-radius: 6px; text-decoration: none; margin-bottom: 16px; }
+
+    .prod-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 18px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
+    .prod-code { font-size: 12px; font-family: ui-monospace, monospace; color: #6b7280; background: #f4f5f7; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+    .prod-info { flex: 1; min-width: 0; }
+    .prod-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .prod-meta { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .brand-pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+    .brand-pill.simpa { background: #e6f1fb; color: #0c447c; }
+    .brand-pill.superpress { background: #faece7; color: #712b13; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.on { background: #22c55e; }
+    .status-dot.off { background: #d1d5db; }
+
+    .prod-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-edit { font-size: 12.5px; font-weight: 600; color: #1e5fa8; text-decoration: none; padding: 6px 12px; border: 1px solid #d7d9dd; border-radius: 6px; }
+    .btn-delete { font-size: 12.5px; font-weight: 600; color: #b91c1c; background: none; border: 1px solid #f3d1d1; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+
+    .empty { text-align: center; padding: 48px 20px; color: #9ca3af; font-size: 14px; }
+    .count { font-size: 13px; color: #9ca3af; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <h1>Ürünler</h1>
+      <a class="back" href="/">← Panel</a>
+    </div>
+
+    <form class="filters" method="get">
+      <select name="brand" onchange="this.form.submit()">
+        <option value="">Tüm Markalar</option>
+        <option value="Simpa" selected={brand === 'Simpa'}>Simpa</option>
+        <option value="Superpress" selected={brand === 'Superpress'}>Superpress</option>
+      </select>
+      <select name="category" onchange="this.form.submit()">
+        <option value="">Tüm Kategoriler</option>
+        {categories.map((c) => <option value={c.id} selected={categoryId === String(c.id)}>{c.name_tr}</option>)}
+      </select>
+      <input type="text" name="q" placeholder="Ürün kodu veya isim ara..." value={search} />
+      <button type="submit" style="display:none">Ara</button>
+    </form>
+
+    <a class="add-btn" href={`/products/new${brand ? `?brand=${brand}` : ''}`}>+ Yeni Ürün</a>
+
+    <p class="count">{products.length} ürün</p>
+
+    {products.length === 0 && <div class="empty">Filtreyle eşleşen ürün yok.</div>}
+    {products.map((p) => (
+      <div class="prod-card">
+        <span class="prod-code">{p.prod_code}</span>
+        <span class={`status-dot ${p.is_active ? 'on' : 'off'}`} title={p.is_active ? 'Aktif' : 'Pasif'}></span>
+        <div class="prod-info">
+          <div class="prod-title">{p.title_tr}{!p.title_en && <span style="color:#d97706"> (EN eksik)</span>}</div>
+          <div class="prod-meta">{p.category_name || 'Kategorisiz'}</div>
+        </div>
+        <span class={`brand-pill ${p.brand === 'Superpress' ? 'superpress' : 'simpa'}`}>{p.brand}</span>
+        <div class="prod-actions">
+          <a class="btn-edit" href={`/products/${p.id}`}>Düzenle</a>
+          <button type="button" class="btn-delete" data-id={p.id} data-name={p.title_tr}>Sil</button>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <script>
+    document.querySelectorAll('.btn-delete').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        if (!confirm(`"${name}" ve tüm varyant/teknik verisi silinsin mi? Bu işlem geri alınamaz.`)) return;
+        const res = await fetch('/api/products/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          const data = await res.json();
+          alert(data.error || 'Silinemedi, tekrar dene.');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
