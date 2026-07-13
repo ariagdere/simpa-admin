@@ -6,8 +6,12 @@ import { getFieldLabelsGrouped, getDistinctGroups } from '../../lib/queries.js';
 import { env } from 'cloudflare:workers';
 
 const db = env.DB;
-const groupedFields = await getFieldLabelsGrouped(db);
-const distinctGroups = await getDistinctGroups(db);
+const [productGroups, variantGroups, productDistinctGroups, variantDistinctGroups] = await Promise.all([
+  getFieldLabelsGrouped(db, 'product'),
+  getFieldLabelsGrouped(db, 'variant'),
+  getDistinctGroups(db, 'product'),
+  getDistinctGroups(db, 'variant'),
+]);
 ---
 <!DOCTYPE html>
 <html lang="tr">
@@ -22,9 +26,13 @@ const distinctGroups = await getDistinctGroups(db);
     .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
     h1 { font-size: 20px; }
     a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
-    .sub { color: #6b7280; font-size: 14px; margin-bottom: 20px; }
+    .sub { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
 
-    .new-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 20px; margin-bottom: 24px; }
+    .scope-section { margin-bottom: 40px; }
+    .scope-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .scope-desc { font-size: 13px; color: #9ca3af; margin-bottom: 16px; }
+
+    .new-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
     .new-section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin-bottom: 12px; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr 90px 1fr; gap: 10px; margin-bottom: 10px; }
     .form-row input, .form-row select { padding: 8px 9px; border: 1px solid #d7d9dd; border-radius: 6px; font-size: 13px; font-family: inherit; }
@@ -41,6 +49,7 @@ const distinctGroups = await getDistinctGroups(db);
     .row-btns { display: flex; gap: 4px; }
     .row-save { font-size: 11px; font-weight: 600; color: #1e5fa8; background: #eff6ff; border: none; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
     .row-del { font-size: 11px; font-weight: 600; color: #b91c1c; background: #fef2f2; border: none; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
+    .empty-note { font-size: 13px; color: #9ca3af; padding: 4px 0; }
   </style>
 </head>
 <body>
@@ -49,109 +58,160 @@ const distinctGroups = await getDistinctGroups(db);
       <h1>Teknik Alan Tanımları</h1>
       <a class="back" href="/">← Panel</a>
     </div>
-    <p class="sub">Ürün varyant tablosundaki sütunları ve gruplarını (Boyutlar, Kilo/Kutu/Ağırlık vb.) buradan yönetirsin. Yeni bir alan eklediğinde, tüm ürünlerin teknik veri tablosunda otomatik yeni sütun olarak belirir.</p>
+    <p class="sub">İki ayrı kapsam var: <strong>Ürün Bilgileri</strong> (künye kutusunda, ürün başına tek değer) ve <strong>Varyant Teknik Verisi</strong> (her varyant için ayrı değer, tablo halinde). Birbirine karışmaz.</p>
 
-    <div class="new-section">
-      <h2>+ Yeni Alan Tanımla</h2>
-      <div class="form-row">
-        <input type="text" id="newLabelTr" placeholder="Etiket (TR) *" />
-        <input type="text" id="newLabelEn" placeholder="Etiket (EN)" />
-        <input type="text" id="newUnit" placeholder="Birim (mm, kg...)" />
-        <select id="newGroupSelect">
-          <option value="">— Grup yok —</option>
-          {distinctGroups.map((g) => <option value={g.group_key}>{g.group_label_tr}</option>)}
-          <option value="__new__">+ Yeni grup...</option>
-        </select>
+    <div class="scope-section">
+      <div class="scope-title">📋 Ürün Bilgileri (Künye)</div>
+      <p class="scope-desc">Ürün başına tek değer — künye kutusunda görünür. Örn. Malzeme, Standart.</p>
+
+      <div class="new-section">
+        <h2>+ Yeni Alan Tanımla</h2>
+        <div class="form-row">
+          <input type="text" class="newLabelTr" placeholder="Etiket (TR) *" />
+          <input type="text" class="newLabelEn" placeholder="Etiket (EN)" />
+          <input type="text" class="newUnit" placeholder="Birim" />
+          <select class="newGroupSelect">
+            <option value="">— Grup yok —</option>
+            {productDistinctGroups.map((g) => <option value={g.group_key}>{g.group_label_tr}</option>)}
+            <option value="__new__">+ Yeni grup...</option>
+          </select>
+        </div>
+        <div class="new-group-fields">
+          <input type="text" class="newGroupLabelTr" placeholder="Yeni grup adı (TR)" />
+          <input type="text" class="newGroupLabelEn" placeholder="Yeni grup adı (EN)" />
+        </div>
+        <button type="button" class="btn-add add-field-btn" data-scope="product">Ekle</button>
+        <div class="form-err"></div>
       </div>
-      <div class="new-group-fields" id="newGroupFields">
-        <input type="text" id="newGroupLabelTr" placeholder="Yeni grup adı (TR)" />
-        <input type="text" id="newGroupLabelEn" placeholder="Yeni grup adı (EN)" />
-      </div>
-      <button type="button" class="btn-add" id="addFieldBtn">Ekle</button>
-      <div class="form-err" id="addErr"></div>
+
+      {productGroups.length === 0 && <p class="empty-note">Henüz ürün bilgisi alanı tanımlanmamış.</p>}
+      {productGroups.map((g) => (
+        <div class="group-block">
+          <div class="group-header">{g.group_label_tr}</div>
+          {g.fields.map((f) => (
+            <div class="field-row" data-key={f.attr_key}>
+              <input type="text" value={f.label_tr} data-field="label_tr" />
+              <input type="text" value={f.label_en || ''} data-field="label_en" placeholder="EN etiket" />
+              <input type="text" value={f.unit || ''} data-field="unit" placeholder="birim" />
+              <div class="row-btns"><button type="button" class="row-save">Kaydet</button><button type="button" class="row-del">Sil</button></div>
+              <div class="field-key">{f.attr_key}</div>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
 
-    {groupedFields.map((g) => (
-      <div class="group-block">
-        <div class="group-header">{g.group_label_tr}</div>
-        {g.fields.map((f) => (
-          <div class="field-row" data-key={f.attr_key}>
-            <input type="text" value={f.label_tr} data-field="label_tr" />
-            <input type="text" value={f.label_en || ''} data-field="label_en" placeholder="EN etiket" />
-            <input type="text" value={f.unit || ''} data-field="unit" placeholder="birim" />
-            <div class="row-btns">
-              <button type="button" class="row-save">Kaydet</button>
-              <button type="button" class="row-del">Sil</button>
-            </div>
-            <div class="field-key">{f.attr_key}</div>
-          </div>
-        ))}
+    <div class="scope-section">
+      <div class="scope-title">🔧 Varyant Teknik Verisi</div>
+      <p class="scope-desc">Her varyant için ayrı değer — ürün sayfasındaki teknik veri tablosunda sütun olur. Örn. Kablo Kesiti, Kutu Ağırlığı.</p>
+
+      <div class="new-section">
+        <h2>+ Yeni Alan Tanımla</h2>
+        <div class="form-row">
+          <input type="text" class="newLabelTr" placeholder="Etiket (TR) *" />
+          <input type="text" class="newLabelEn" placeholder="Etiket (EN)" />
+          <input type="text" class="newUnit" placeholder="Birim (mm, kg...)" />
+          <select class="newGroupSelect">
+            <option value="">— Grup yok —</option>
+            {variantDistinctGroups.map((g) => <option value={g.group_key}>{g.group_label_tr}</option>)}
+            <option value="__new__">+ Yeni grup...</option>
+          </select>
+        </div>
+        <div class="new-group-fields">
+          <input type="text" class="newGroupLabelTr" placeholder="Yeni grup adı (TR)" />
+          <input type="text" class="newGroupLabelEn" placeholder="Yeni grup adı (EN)" />
+        </div>
+        <button type="button" class="btn-add add-field-btn" data-scope="variant">Ekle</button>
+        <div class="form-err"></div>
       </div>
-    ))}
+
+      {variantGroups.length === 0 && <p class="empty-note">Henüz varyant teknik veri alanı tanımlanmamış.</p>}
+      {variantGroups.map((g) => (
+        <div class="group-block">
+          <div class="group-header">{g.group_label_tr}</div>
+          {g.fields.map((f) => (
+            <div class="field-row" data-key={f.attr_key}>
+              <input type="text" value={f.label_tr} data-field="label_tr" />
+              <input type="text" value={f.label_en || ''} data-field="label_en" placeholder="EN etiket" />
+              <input type="text" value={f.unit || ''} data-field="unit" placeholder="birim" />
+              <div class="row-btns"><button type="button" class="row-save">Kaydet</button><button type="button" class="row-del">Sil</button></div>
+              <div class="field-key">{f.attr_key}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   </div>
 
-  <script define:vars={{ distinctGroups }}>
-    const groupSelect = document.getElementById('newGroupSelect');
-    const newGroupFields = document.getElementById('newGroupFields');
-    groupSelect.addEventListener('change', () => {
-      newGroupFields.classList.toggle('show', groupSelect.value === '__new__');
-    });
+  <script define:vars={{ productDistinctGroups, variantDistinctGroups }}>
+    document.querySelectorAll('.new-section').forEach((section) => {
+      const groupSelect = section.querySelector('.newGroupSelect');
+      const newGroupFields = section.querySelector('.new-group-fields');
+      groupSelect.addEventListener('change', () => {
+        newGroupFields.classList.toggle('show', groupSelect.value === '__new__');
+      });
 
-    document.getElementById('addFieldBtn').addEventListener('click', async () => {
-      const errBox = document.getElementById('addErr');
-      errBox.style.display = 'none';
+      const addBtn = section.querySelector('.add-field-btn');
+      const scope = addBtn.dataset.scope;
+      const distinctGroups = scope === 'product' ? productDistinctGroups : variantDistinctGroups;
 
-      const labelTr = document.getElementById('newLabelTr').value.trim();
-      const labelEn = document.getElementById('newLabelEn').value.trim();
-      const unit = document.getElementById('newUnit').value.trim();
-      let groupKey = groupSelect.value;
-      let groupLabelTr = '';
-      let groupLabelEn = '';
+      addBtn.addEventListener('click', async () => {
+        const errBox = section.querySelector('.form-err');
+        errBox.style.display = 'none';
 
-      if (!labelTr) {
-        errBox.textContent = 'Türkçe etiket zorunlu.';
-        errBox.style.display = 'block';
-        return;
-      }
+        const labelTr = section.querySelector('.newLabelTr').value.trim();
+        const labelEn = section.querySelector('.newLabelEn').value.trim();
+        const unit = section.querySelector('.newUnit').value.trim();
+        let groupKey = groupSelect.value;
+        let groupLabelTr = '';
+        let groupLabelEn = '';
 
-      if (groupKey === '__new__') {
-        groupLabelTr = document.getElementById('newGroupLabelTr').value.trim();
-        groupLabelEn = document.getElementById('newGroupLabelEn').value.trim();
-        if (!groupLabelTr) {
-          errBox.textContent = 'Yeni grup adı (TR) zorunlu.';
+        if (!labelTr) {
+          errBox.textContent = 'Türkçe etiket zorunlu.';
           errBox.style.display = 'block';
           return;
         }
-        groupKey = groupLabelTr.toUpperCase().replace(/[^A-ZÇĞİÖŞÜ0-9]+/g, '_');
-      } else {
-        const found = distinctGroups.find((g) => g.group_key === groupKey);
-        if (found) {
-          groupLabelTr = found.group_label_tr;
-          groupLabelEn = found.group_label_en;
-        }
-      }
 
-      try {
-        const res = await fetch('/api/fields/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isNew: true,
-            label_tr: labelTr,
-            label_en: labelEn,
-            unit,
-            group_key: groupKey || null,
-            group_label_tr: groupLabelTr,
-            group_label_en: groupLabelEn,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Eklenemedi.');
-        window.location.reload();
-      } catch (err) {
-        errBox.textContent = err.message || 'Eklenemedi.';
-        errBox.style.display = 'block';
-      }
+        if (groupKey === '__new__') {
+          groupLabelTr = section.querySelector('.newGroupLabelTr').value.trim();
+          groupLabelEn = section.querySelector('.newGroupLabelEn').value.trim();
+          if (!groupLabelTr) {
+            errBox.textContent = 'Yeni grup adı (TR) zorunlu.';
+            errBox.style.display = 'block';
+            return;
+          }
+          groupKey = groupLabelTr.toUpperCase().replace(/[^A-ZÇĞİÖŞÜ0-9]+/g, '_');
+        } else if (groupKey) {
+          const found = distinctGroups.find((g) => g.group_key === groupKey);
+          if (found) {
+            groupLabelTr = found.group_label_tr;
+            groupLabelEn = found.group_label_en;
+          }
+        }
+
+        try {
+          const res = await fetch('/api/fields/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isNew: true,
+              label_tr: labelTr,
+              label_en: labelEn,
+              unit,
+              group_key: groupKey || null,
+              group_label_tr: groupLabelTr,
+              group_label_en: groupLabelEn,
+              scope,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Eklenemedi.');
+          window.location.reload();
+        } catch (err) {
+          errBox.textContent = err.message || 'Eklenemedi.';
+          errBox.style.display = 'block';
+        }
+      });
     });
 
     document.querySelectorAll('.field-row').forEach((row) => {
