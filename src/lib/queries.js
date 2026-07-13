@@ -330,6 +330,11 @@ export async function reorderVariants(db, ids) {
   await db.batch(stmts);
 }
 
+/** Excel import'ta "bu kod zaten var mı" kontrolü için. */
+export async function getVariantByCode(db, productId, variantCode) {
+  return db.prepare('SELECT id FROM product_variants WHERE product_id = ? AND variant_code = ?').bind(productId, variantCode).first();
+}
+
 // ───────────────────────────── TEKNİK ALAN TANIMLARI (field_labels + gruplar) ─────────────────────────────
 
 /** Tüm alanlar, gruplarına göre gruplanmış. scope: 'product' | 'variant' | undefined (hepsi). */
