@@ -14,6 +14,7 @@ import {
   getProductCompatibilityList,
   getProductImages,
 } from '../../lib/queries.js';
+import AdminLayout from '../../layouts/AdminLayout.astro';
 import { env } from 'cloudflare:workers';
 
 const db = env.DB;
@@ -61,94 +62,12 @@ const fieldLabels = fieldGroups.flatMap((g) => g.fields);
 
 const val = (v) => v ?? '';
 ---
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{isNew ? 'Yeni Ürün' : product.title_tr} — Admin Panel</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 32px 24px 80px; }
-    .wrap { max-width: 1100px; margin: 0 auto; }
-    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    h1 { font-size: 20px; }
-    a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
-
-    .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 22px; margin-bottom: 16px; }
-    .section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin-bottom: 14px; }
-    .section-hint { font-size: 12px; color: #9ca3af; margin-top: -8px; margin-bottom: 14px; }
-
-    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-    .field { margin-bottom: 14px; }
-    .field:last-child { margin-bottom: 0; }
-    label { display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 5px; }
-    input[type="text"], select, textarea {
-      width: 100%; padding: 8px 10px; border: 1px solid #d7d9dd; border-radius: 6px; font-size: 13.5px; font-family: inherit; color: #1e2535;
-    }
-    textarea { resize: vertical; min-height: 70px; }
-
-    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
-    .toggle-row + .toggle-row { border-top: 1px solid #f1f2f4; margin-top: 8px; padding-top: 12px; }
-    .toggle-label { font-size: 13.5px; font-weight: 600; }
-    .toggle-desc { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-    .switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
-    .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 1; }
-    .switch .track { position: absolute; inset: 0; background: #d1d5db; border-radius: 20px; transition: .15s; }
-    .switch .thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
-    .switch input:checked + .track { background: #1e2535; }
-    .switch input:checked ~ .thumb { transform: translateX(16px); }
-
-    .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e5e7eb; padding: 14px 24px; display: flex; justify-content: center; z-index: 10; }
-    .save-bar-in { max-width: 1100px; width: 100%; display: flex; gap: 10px; align-items: center; }
-    .btn-save { background: #1e2535; color: #fff; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 6px; border: none; cursor: pointer; }
-    .btn-save:disabled { opacity: .6; cursor: default; }
-    .save-msg { font-size: 13px; color: #22c55e; font-weight: 600; }
-    .save-err { font-size: 13px; color: #b91c1c; font-weight: 600; }
-    .btn-delete-product { margin-left: auto; font-size: 13px; color: #b91c1c; background: none; border: 1px solid #f3d1d1; border-radius: 6px; padding: 9px 16px; cursor: pointer; }
-
-    .variant-note { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
-    .table-scroll { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
-    table.vtable { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-    table.vtable th { text-align: left; background: #f4f5f7; padding: 8px 10px; font-weight: 600; color: #4a5568; white-space: nowrap; border-bottom: 1px solid #e5e7eb; }
-    table.vtable td { padding: 4px 6px; border-bottom: 1px solid #f1f2f4; }
-    table.vtable input { width: 100%; min-width: 80px; padding: 5px 7px; border: 1px solid transparent; border-radius: 4px; font-size: 12.5px; font-family: inherit; background: transparent; }
-    table.vtable input:focus { border-color: #1e5fa8; background: #fff; outline: none; }
-    table.vtable input.code-input { min-width: 120px; font-family: ui-monospace, monospace; font-weight: 600; }
-    .row-actions { display: flex; gap: 4px; white-space: nowrap; }
-    .row-save { font-size: 11px; font-weight: 600; color: #1e5fa8; background: #eff6ff; border: none; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
-    .row-del { font-size: 11px; font-weight: 600; color: #b91c1c; background: #fef2f2; border: none; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
-    .row-dirty td { background: #fffbeb; }
-    .add-row-btn { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: #1e2535; background: #f4f5f7; border: 1px solid #d7d9dd; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
-
-    .excel-bar { display: flex; gap: 10px; margin-bottom: 14px; }
-    .btn-excel { font-size: 12.5px; font-weight: 600; color: #1e2535; background: #f4f5f7; border: 1px solid #d7d9dd; border-radius: 6px; padding: 8px 14px; cursor: pointer; text-decoration: none; display: inline-block; }
-    .excel-preview { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-    #excelPreviewTable th, #excelPreviewTable td { padding: 5px 8px; border-bottom: 1px solid #f1f2f4; text-align: left; white-space: nowrap; }
-    #excelPreviewTable th { background: #fff; position: sticky; top: 0; }
-    .tag-update { font-size: 10px; font-weight: 700; color: #1e5fa8; background: #eff6ff; padding: 1px 6px; border-radius: 4px; }
-    .tag-insert { font-size: 10px; font-weight: 700; color: #15803d; background: #f0fdf4; padding: 1px 6px; border-radius: 4px; }
-
-    .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
-    .image-card { position: relative; aspect-ratio: 1/1; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: #f4f5f7; }
-    .image-card img { width: 100%; height: 100%; object-fit: cover; }
-    .img-star { position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(255,255,255,.9); color: #d1d5db; font-size: 13px; cursor: pointer; line-height: 22px; padding: 0; }
-    .img-star.active { color: #f59e0b; }
-    .img-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(255,255,255,.9); color: #b91c1c; font-size: 11px; cursor: pointer; padding: 0; }
-    .img-order-btns { position: absolute; bottom: 4px; left: 4px; right: 4px; display: flex; justify-content: space-between; }
-    .img-order-btns button { width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(255,255,255,.9); color: #4a5568; font-size: 10px; cursor: pointer; padding: 0; }
-    .img-order-btns button:disabled { opacity: .3; cursor: default; }
-    .image-add-card { aspect-ratio: 1/1; border: 1.5px dashed #d7d9dd; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #6b7280; cursor: pointer; text-align: center; padding: 8px; }
-    .image-add-card:hover { border-color: #1e5fa8; color: #1e5fa8; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="top">
-      <h1>{isNew ? 'Yeni Ürün' : product.title_tr}</h1>
-      <a class="back" href="/products">← Listeye dön</a>
-    </div>
+<AdminLayout title={isNew ? 'Yeni Ürün' : (product.title_tr || product.title_en)} activeNav="products">
+  <div class="a-page-header">
+    <h1 class="a-h1">{isNew ? 'Yeni Ürün' : (product.title_tr || product.title_en)}</h1>
+    <a class="back" href="/products" style="font-size:13px;color:var(--a-text-secondary);text-decoration:none">← Listeye dön</a>
+  </div>
+  <div style="margin-bottom:16px"></div>
 
     <form id="prodForm">
       <input type="hidden" name="id" value={val(product.id)} />
@@ -342,7 +261,6 @@ const val = (v) => v ?? '';
     {isNew && (
       <p style="font-size:13px;color:#9ca3af;text-align:center;margin-top:8px">Teknik veri tablosunu düzenlemek için önce ürünü bir kez kaydet.</p>
     )}
-  </div>
 
   <div class="save-bar">
     <div class="save-bar-in">
@@ -779,5 +697,4 @@ const val = (v) => v ?? '';
       });
     });
   </script>
-</body>
-</html>
+</AdminLayout>
