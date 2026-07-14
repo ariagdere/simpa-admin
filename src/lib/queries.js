@@ -369,6 +369,40 @@ export async function getDashboardStats(db) {
   };
 }
 
+// ───────────────────────────── ŞİRKET KÜNYESİ ─────────────────────────────
+
+export async function getCompanyInfo(db, brand) {
+  const info = await db.prepare('SELECT * FROM company_info WHERE brand = ?').bind(brand).first();
+  const { results: socialLinks } = await db.prepare('SELECT * FROM company_social_links WHERE brand = ? ORDER BY sort_order').bind(brand).all();
+  return { info: info || {}, socialLinks };
+}
+
+const COMPANY_INFO_FIELDS = ['unvan', 'adres', 'sabit_telefon', 'whatsapp_telefon', 'email', 'ga_tracking_id', 'diger_bilgi'];
+
+export async function saveCompanyInfo(db, brand, fields) {
+  const existing = await db.prepare('SELECT id FROM company_info WHERE brand = ?').bind(brand).first();
+  const keys = Object.keys(fields).filter((k) => COMPANY_INFO_FIELDS.includes(k));
+  const values = keys.map((k) => fields[k] || null);
+
+  if (existing) {
+    const setClause = keys.map((k) => `${k} = ?`).join(', ');
+    await db.prepare(`UPDATE company_info SET ${setClause}, updated_at = datetime('now') WHERE brand = ?`).bind(...values, brand).run();
+  } else {
+    const cols = ['brand', ...keys].join(', ');
+    const placeholders = ['?', ...keys.map(() => '?')].join(', ');
+    await db.prepare(`INSERT INTO company_info (${cols}) VALUES (${placeholders})`).bind(brand, ...values).run();
+  }
+}
+
+export async function addSocialLink(db, brand, platform, url) {
+  const maxSort = await db.prepare('SELECT MAX(sort_order) as m FROM company_social_links WHERE brand = ?').bind(brand).first();
+  await db.prepare('INSERT INTO company_social_links (brand, platform, url, sort_order) VALUES (?, ?, ?, ?)').bind(brand, platform, url, (maxSort.m ?? -1) + 1).run();
+}
+
+export async function deleteSocialLink(db, id) {
+  await db.prepare('DELETE FROM company_social_links WHERE id = ?').bind(id).run();
+}
+
 // ───────────────────────────── GÖRSEL GALERİSİ (product_images) ─────────────────────────────
 
 export async function getProductImages(db, productId) {
