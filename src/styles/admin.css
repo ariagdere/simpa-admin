@@ -1,0 +1,137 @@
+/* src/styles/admin.css — paylaşılan tasarım sistemi
+   Marka rengi (Simpa altın / Superpress turuncu) ile karışmasın diye admin'in
+   kendi nötr vurgu rengi (indigo) var — "bu hangi markanın rengi" karışıklığı olmasın. */
+
+:root {
+  --a-bg: #f7f7f9;
+  --a-sidebar-bg: #ffffff;
+  --a-surface: #ffffff;
+  --a-border: #e5e7eb;
+  --a-border-light: #f1f2f4;
+  --a-text: #1a1d29;
+  --a-text-secondary: #6b7280;
+  --a-text-muted: #9ca3af;
+  --a-accent: #4f46e5;
+  --a-accent-hover: #4338ca;
+  --a-accent-light: #eef2ff;
+  --a-success: #16a34a;
+  --a-success-light: #f0fdf4;
+  --a-danger: #dc2626;
+  --a-danger-light: #fef2f2;
+  --a-danger-border: #fecaca;
+  --a-warning: #d97706;
+  --a-warning-light: #fffbeb;
+  --a-warning-border: #fde68a;
+  --a-radius: 8px;
+  --a-radius-lg: 12px;
+  --a-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--a-bg);
+  color: var(--a-text);
+  font-size: 14px;
+}
+
+/* ───────────────────────────── Tipografi ───────────────────────────── */
+
+.a-h1 { font-size: 20px; font-weight: 600; margin: 0; }
+.a-h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--a-text-secondary); margin: 0 0 14px; }
+.a-sub { color: var(--a-text-secondary); font-size: 13.5px; margin: 4px 0 0; }
+.a-hint { font-size: 12px; color: var(--a-text-muted); }
+
+/* ───────────────────────────── Butonlar ───────────────────────────── */
+
+.a-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  padding: 8px 16px; border-radius: var(--a-radius); border: 1px solid var(--a-border);
+  background: var(--a-surface); color: var(--a-text); cursor: pointer; text-decoration: none;
+  transition: background .12s, border-color .12s;
+}
+.a-btn:hover { background: var(--a-bg); border-color: #d1d5db; }
+.a-btn:disabled { opacity: .55; cursor: default; }
+
+.a-btn-primary { background: var(--a-accent); border-color: var(--a-accent); color: #fff; }
+.a-btn-primary:hover { background: var(--a-accent-hover); border-color: var(--a-accent-hover); }
+
+.a-btn-danger { color: var(--a-danger); border-color: var(--a-danger-border); background: var(--a-danger-light); }
+.a-btn-danger:hover { background: #fee2e2; }
+
+.a-btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+
+/* ───────────────────────────── Kartlar / bölümler ───────────────────────────── */
+
+.a-card {
+  background: var(--a-surface); border: 1px solid var(--a-border); border-radius: var(--a-radius-lg);
+  padding: 20px 22px; margin-bottom: 16px; box-shadow: var(--a-shadow);
+}
+
+.a-page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.a-page-wrap { max-width: 900px; }
+.a-page-wrap-wide { max-width: 1100px; }
+.a-page-wrap-narrow { max-width: 620px; }
+
+/* ───────────────────────────── Form alanları ───────────────────────────── */
+
+.a-field { margin-bottom: 14px; }
+.a-field:last-child { margin-bottom: 0; }
+.a-field label { display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+.a-field label .a-hint { font-weight: 400; }
+
+.a-input, .a-select, .a-textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--a-border); border-radius: var(--a-radius);
+  font-size: 13.5px; font-family: inherit; color: var(--a-text); background: var(--a-surface);
+  transition: border-color .12s;
+}
+.a-input:focus, .a-select:focus, .a-textarea:focus { outline: none; border-color: var(--a-accent); }
+.a-textarea { resize: vertical; min-height: 70px; }
+
+.a-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.a-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+/* ───────────────────────────── Anahtar (toggle) ───────────────────────────── */
+
+.a-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.a-toggle-row + .a-toggle-row { border-top: 1px solid var(--a-border-light); margin-top: 8px; padding-top: 12px; }
+.a-toggle-label { font-size: 13.5px; font-weight: 600; }
+.a-toggle-desc { font-size: 12px; color: var(--a-text-muted); margin-top: 2px; }
+
+.a-switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+.a-switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 1; }
+.a-switch .a-track { position: absolute; inset: 0; background: #d1d5db; border-radius: 20px; transition: .15s; }
+.a-switch .a-thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.a-switch input:checked + .a-track { background: var(--a-accent); }
+.a-switch input:checked ~ .a-thumb { transform: translateX(16px); }
+
+/* ───────────────────────────── Rozet / durum noktası ───────────────────────────── */
+
+.a-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; display: inline-block; }
+.a-badge-accent { background: var(--a-accent-light); color: var(--a-accent); }
+.a-badge-warn { background: var(--a-warning-light); color: var(--a-warning); }
+
+.a-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.a-dot-on { background: var(--a-success); }
+.a-dot-off { background: #d1d5db; }
+
+/* ───────────────────────────── Liste satırları / kartları ───────────────────────────── */
+
+.a-list-card { background: var(--a-surface); border: 1px solid var(--a-border); border-radius: var(--a-radius); padding: 12px 18px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
+.a-list-empty { text-align: center; padding: 48px 20px; color: var(--a-text-muted); font-size: 14px; }
+
+/* ───────────────────────────── Kaydet çubuğu (alt sabit) ───────────────────────────── */
+
+.a-savebar { position: fixed; bottom: 0; left: 220px; right: 0; background: var(--a-surface); border-top: 1px solid var(--a-border); padding: 14px 32px; display: flex; align-items: center; gap: 10px; z-index: 10; }
+.a-save-msg { font-size: 13px; color: var(--a-success); font-weight: 600; }
+.a-save-err { font-size: 13px; color: var(--a-danger); font-weight: 600; }
+
+/* ───────────────────────────── Tablo ───────────────────────────── */
+
+.a-table-scroll { overflow-x: auto; border: 1px solid var(--a-border); border-radius: var(--a-radius); }
+.a-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.a-table th { text-align: left; background: var(--a-bg); padding: 8px 10px; font-weight: 600; color: #4a5568; white-space: nowrap; border-bottom: 1px solid var(--a-border); }
+.a-table td { padding: 4px 6px; border-bottom: 1px solid var(--a-border-light); }
