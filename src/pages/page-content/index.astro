@@ -2,12 +2,13 @@
 // src/pages/page-content/index.astro
 export const prerender = false;
 
+import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getAllPageContentAdmin } from '../../lib/queries.js';
+import { resolveBrand } from '../../lib/adminUtils.js';
 import { env } from 'cloudflare:workers';
 
 const db = env.DB;
-const url = new URL(Astro.request.url);
-const brand = url.searchParams.get('brand') === 'Superpress' ? 'Superpress' : 'Simpa';
+const brand = resolveBrand(Astro);
 
 const pages = await getAllPageContentAdmin(db, brand);
 
@@ -21,46 +22,11 @@ const SECTION_LABELS = {
   'gizlilik_metni': 'Tüm Metin',
 };
 ---
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Statik Sayfa İçerikleri — Admin Panel</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 32px 24px; }
-    .wrap { max-width: 720px; margin: 0 auto; }
-    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    h1 { font-size: 20px; }
-    a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
-    .sub { color: #6b7280; font-size: 14px; margin-bottom: 20px; }
-
-    .tabs { display: flex; gap: 4px; background: #e9eaed; border-radius: 8px; padding: 4px; width: fit-content; margin-bottom: 24px; }
-    .tab { padding: 7px 16px; border-radius: 6px; font-size: 13.5px; font-weight: 600; text-decoration: none; color: #6b7280; }
-    .tab.active { background: #fff; color: #1e2535; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-
-    .page-block { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
-    .page-header { background: #f4f5f7; padding: 10px 16px; font-size: 13px; font-weight: 700; color: #4a5568; }
-    .section-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid #f1f2f4; }
-    .section-name { font-size: 13.5px; font-weight: 600; }
-    .section-meta { font-size: 11.5px; color: #9ca3af; margin-top: 2px; }
-    .btn-edit { font-size: 12.5px; font-weight: 600; color: #1e5fa8; text-decoration: none; padding: 6px 12px; border: 1px solid #d7d9dd; border-radius: 6px; }
-    .empty-note { padding: 16px; font-size: 13px; color: #9ca3af; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="top">
-      <h1>Statik Sayfa İçerikleri</h1>
-      <a class="back" href="/">← Panel</a>
-    </div>
+<AdminLayout title="Statik Sayfa İçerikleri" activeNav="page-content" showBrandSwitcher brand={brand}>
+  <div class="a-page-header">
+    <h1 class="a-h1">Statik Sayfa İçerikleri</h1>
+  </div>
     <p class="sub">Hakkımızda ve Gizlilik ve Güvenlik sayfalarının metinlerini buradan düzenle.</p>
-
-    <div class="tabs">
-      <a class="tab{brand === 'Simpa' ? ' active' : ''}" href="/page-content?brand=Simpa">Simpa Elektrik</a>
-      <a class="tab{brand === 'Superpress' ? ' active' : ''}" href="/page-content?brand=Superpress">Superpress</a>
-    </div>
 
     {pages.length === 0 && <div class="empty-note">Bu markada henüz içerik yok.</div>}
     {pages.map((p) => (
@@ -77,6 +43,4 @@ const SECTION_LABELS = {
         ))}
       </div>
     ))}
-  </div>
-</body>
-</html>
+</AdminLayout>
