@@ -1,0 +1,100 @@
+---
+// src/pages/disaster-recovery/index.astro
+export const prerender = false;
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+<AdminLayout title="Felaket Kurtarma ve Yedekleme" activeNav="disaster-recovery">
+  <div class="a-page-header">
+    <h1 class="a-h1">Felaket Kurtarma ve Yedekleme Rehberi</h1>
+  </div>
+  <p class="a-sub" style="margin-bottom:8px">Simpa Elektrik + Superpress — Web Projesi</p>
+
+  <div style="background:var(--a-warning-light);border:1px solid var(--a-warning-border);border-radius:var(--a-radius-lg);padding:14px 18px;margin-bottom:24px;font-size:13px;line-height:1.6;color:#78350f">
+    <strong>Önemli:</strong> Bu sayfa Cloudflare üzerinde çalışıyor. Cloudflare hesabına erişimi tamamen kaybedersen bu sayfaya da erişemezsin — burası günlük kullanım için hızlı bir referans, <strong>asıl güvence dışarıda (kendi bilgisayarında / Google Drive'da) tuttuğun kopya</strong>. İkisi de aynı içerikte tutulmalı.
+  </div>
+
+  <div class="a-card">
+    <h2 class="a-h2">1. Rutin Yedekleme — her büyük oturumdan sonra</h2>
+    <p style="font-size:13.5px;line-height:1.7;color:var(--a-text-secondary);margin-bottom:14px">
+      Dört parça var: <strong>D1</strong> (veritabanı), <strong>R2</strong> (görseller), <strong>GitHub</strong> (kod), <strong>bu belge</strong> (ayarlar). Hepsini tek bir tarihli klasörde topla. Güncelleme sıklığın düşük olduğu için (yılda ~3 kez) bu rutinin elle ve nadiren çalıştırılması yeterli.
+    </p>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px">1.1 — D1 veritabanı</div>
+    <pre style="background:var(--a-bg);border:1px solid var(--a-border);border-radius:var(--a-radius);padding:12px 14px;font-size:12.5px;font-family:ui-monospace,monospace;overflow-x:auto;margin-bottom:16px">wrangler d1 export simpa-db --remote --output=simpa-db-TARIH.sql</pre>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px">1.2 — R2 (görseller)</div>
+    <p style="font-size:13px;line-height:1.7;color:var(--a-text-secondary);margin-bottom:8px">En pratik yöntem <code>rclone</code> ile senkronize etmek (R2, S3 uyumlu API sunuyor). API token'ı Cloudflare dashboard → R2 → Manage R2 API Tokens'tan alınır.</p>
+    <pre style="background:var(--a-bg);border:1px solid var(--a-border);border-radius:var(--a-radius);padding:12px 14px;font-size:12.5px;font-family:ui-monospace,monospace;overflow-x:auto;margin-bottom:16px">rclone sync r2:simpa-assets ./r2-assets</pre>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px">1.3 — GitHub / Kod</div>
+    <p style="font-size:13px;line-height:1.7;color:var(--a-text-secondary);margin-bottom:8px">Git zaten dağıtık — yerel kopyan güncelse bu sadece bir kontrol:</p>
+    <pre style="background:var(--a-bg);border:1px solid var(--a-border);border-radius:var(--a-radius);padding:12px 14px;font-size:12.5px;font-family:ui-monospace,monospace;overflow-x:auto;margin-bottom:16px">cd simpa && git pull
+cd ../superpress && git pull
+cd ../simpa-admin && git pull</pre>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px">1.4 — Hepsini Cloudflare dışına taşı</div>
+    <p style="font-size:13px;line-height:1.7;color:var(--a-text-secondary)">Yedek klasörünü Cloudflare hesabından bağımsız bir yere koy — kendi bilgisayarın + tercihen ikinci kopya olarak bir bulut hizmeti.</p>
+  </div>
+
+  <div class="a-card">
+    <h2 class="a-h2">2. Felaket Kurtarma Envanteri</h2>
+    <p style="font-size:13px;color:var(--a-text-secondary);margin-bottom:14px">Sıfırdan kurman gerekirse ihtiyaç duyacağın tüm kimlikler, isimler ve ayarlar.</p>
+
+    <div style="font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--a-text-muted);margin-bottom:8px">Cloudflare Kaynakları</div>
+    <div class="a-table-scroll" style="margin-bottom:20px">
+      <table class="a-table">
+        <tr><th>Kaynak</th><th>Değer</th></tr>
+        <tr><td>D1 veritabanı</td><td><code>simpa-db</code> (ID: <code>d35f9f41-97b4-4627-9c5f-9a5475ee94e3</code>)</td></tr>
+        <tr><td>R2 bucket</td><td><code>simpa-assets</code></td></tr>
+        <tr><td>R2 public domain</td><td><code>assets.superpress.com.tr</code></td></tr>
+        <tr><td>Admin panel R2 binding</td><td><code>UPLOADS</code> — asla <code>ASSETS</code> verme, Astro'nun kendi binding'iyle çakışır</td></tr>
+        <tr><td>Admin panel adresi (şu an)</td><td><code>admin.ariagdere.workers.dev</code> (ileride kendi domain'e taşınacak)</td></tr>
+      </table>
+    </div>
+
+    <div style="font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--a-text-muted);margin-bottom:8px">GitHub Repoları</div>
+    <ul style="font-size:13px;color:var(--a-text-secondary);line-height:1.9;margin:0 0 20px 18px">
+      <li><code>ariagdere/simpa</code> — Simpa Elektrik sitesi</li>
+      <li><code>ariagdere/superpress</code> — Superpress sitesi</li>
+      <li><code>ariagdere/simpa-admin</code> — Admin panel</li>
+    </ul>
+
+    <div style="font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--a-text-muted);margin-bottom:8px">Worker Secrets</div>
+    <ul style="font-size:13px;color:var(--a-text-secondary);line-height:1.9;margin:0 0 20px 18px">
+      <li><code>RESEND_API_KEY</code> — transactional e-posta için</li>
+      <li><code>TURNSTILE_SECRET_KEY</code> — form bot koruması için</li>
+      <li>Turnstile site key (herkese açık): <code>0x4AAAAAADzH9tbdF9k28nV8</code> — yeni domain canlıya çıkınca hostname olarak eklenmeli</li>
+    </ul>
+
+    <div style="font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--a-text-muted);margin-bottom:8px">DNS Ayarları — unutulursa mail/site bozulur</div>
+    <ul style="font-size:13px;color:var(--a-text-secondary);line-height:1.9;margin:0 0 20px 18px">
+      <li><code>superpress.com.tr</code> apex A kaydı: <strong>DNS-only (gri bulut)</strong>, Proxied değil — proxy IMAP/POP3/SMTP portlarını desteklemiyor</li>
+      <li><code>mail.superpress.com.tr</code>: doğrudan A kaydı (CNAME değil), DNS-only — MX bu adresi hedefliyor</li>
+      <li>Resend, <code>mail.[domain]</code> alt alan adı doğrulaması kullanıyor (SPF/DKIM o alt alan adında)</li>
+      <li>Cloudflare Access: One-time PIN (e-posta OTP) — yeni Access uygulamasında Zero Trust → Settings → Authentication'da <strong>elle etkinleştirilmeli</strong>, varsayılan kapalı</li>
+    </ul>
+
+    <div style="font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--a-text-muted);margin-bottom:8px">Kod Tabanında Kritik Noktalar</div>
+    <ul style="font-size:13px;color:var(--a-text-secondary);line-height:1.9;margin:0 0 4px 18px">
+      <li><code>wrangler.json</code>'da <code>pages_build_output_dir</code> varsa "ASSETS reserved" hatası verir, kaldırılmalı</li>
+      <li>Astro 6+'da <code>Astro.locals.runtime.env</code> kaldırıldı, <code>import &#123; env &#125; from 'cloudflare:workers'</code> kullanılıyor</li>
+      <li><code>getActiveHeroSlides</code>, <code>getPageSection</code>, <code>getCompanyInfo</code> hem admin'de hem iki site projesinde ayrı ayrı (aynı içerikle) var — biri değişirse diğerleri de güncellenmeli</li>
+    </ul>
+  </div>
+
+  <div class="a-card">
+    <h2 class="a-h2">3. Sıfırdan Geri Yükleme — adım adım</h2>
+    <ol style="font-size:13.5px;color:var(--a-text-secondary);line-height:2;margin:0 0 0 18px">
+      <li>Yeni/erişilen Cloudflare hesabında D1 oluştur, SQL dökümünü içe aktar (<code>wrangler d1 create</code> + <code>wrangler d1 execute --file=</code>)</li>
+      <li>R2 bucket oluştur, <code>rclone sync</code> ile dosyaları tersine yükle</li>
+      <li>GitHub repolarını klonla (ya da yerel kopyandan yeni bir remote'a push et)</li>
+      <li>Üç projeyi de Workers/Pages'e bağla — binding isimlerini (<code>UPLOADS</code>, D1 adı) birebir kullan</li>
+      <li>Worker secrets'ları yeniden gir: <code>RESEND_API_KEY</code>, <code>TURNSTILE_SECRET_KEY</code></li>
+      <li>DNS kayıtlarını yukarıdaki tabloya göre yeniden kur — özellikle <code>mail.superpress.com.tr</code> ve DNS-only ayarları</li>
+      <li>Cloudflare Access uygulamasını yeniden kur, OTP'yi etkinleştir</li>
+      <li>Turnstile site key'ine yeni domain'leri hostname olarak ekle</li>
+    </ol>
+  </div>
+
+  <p class="a-hint" style="display:block;margin-top:8px">Bu sayfayı güncel tut — yeni bir kaynak, secret veya DNS kaydı eklendikçe buraya da eklenmeli. Dışarıdaki kopyayı da unutma.</p>
+</AdminLayout>
