@@ -213,7 +213,7 @@ export async function getProductsAdmin(db, { brand, categoryId, search } = {}) {
   const params = [];
   if (brand) { sql += ' AND p.brand = ?'; params.push(brand); }
   if (categoryId) { sql += ' AND p.category_id = ?'; params.push(Number(categoryId)); }
-  if (search) { sql += ' AND (p.prod_code LIKE ? OR p.title_tr LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
+  if (search) { sql += ' AND (p.prod_code LIKE ? OR p.title_tr LIKE ? OR p.title_en LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`); }
   sql += ' ORDER BY p.sort_order';
   const { results } = await db.prepare(sql).bind(...params).all();
   return results;
@@ -354,34 +354,18 @@ export async function getVariantByCode(db, productId, variantCode) {
   return db.prepare('SELECT id FROM product_variants WHERE product_id = ? AND variant_code = ?').bind(productId, variantCode).first();
 }
 
-/** Panel ana sayfası için: ürün/kategori sayıları, EN çevirisi tamam olan/olmayan ayrımıyla. */
+/** Panel ana sayfası için: ürün/kategori sayıları (basit toplam). */
 export async function getDashboardStats(db) {
-  const { results: productStats } = await db
-    .prepare(
-      `SELECT brand, COUNT(*) as total,
-              SUM(CASE WHEN title_en IS NOT NULL AND title_en != '' THEN 1 ELSE 0 END) as with_en
-       FROM products GROUP BY brand`
-    )
-    .all();
+  const { results: productStats } = await db.prepare('SELECT brand, COUNT(*) as total FROM products GROUP BY brand').all();
+  const categoryStats = await db.prepare('SELECT COUNT(*) as total FROM categories').first();
 
-  const categoryStats = await db
-    .prepare(
-      `SELECT COUNT(*) as total,
-              SUM(CASE WHEN name_en IS NOT NULL AND name_en != '' THEN 1 ELSE 0 END) as with_en
-       FROM categories`
-    )
-    .first();
-
-  const simpa = productStats.find((p) => p.brand === 'Simpa') || { total: 0, with_en: 0 };
-  const superpress = productStats.find((p) => p.brand === 'Superpress') || { total: 0, with_en: 0 };
+  const simpa = productStats.find((p) => p.brand === 'Simpa') || { total: 0 };
+  const superpress = productStats.find((p) => p.brand === 'Superpress') || { total: 0 };
 
   return {
     simpaProducts: simpa.total,
-    simpaProductsMissingEn: simpa.total - simpa.with_en,
     superpressProducts: superpress.total,
-    superpressProductsMissingEn: superpress.total - superpress.with_en,
     categories: categoryStats.total,
-    categoriesMissingEn: categoryStats.total - categoryStats.with_en,
   };
 }
 
@@ -564,8 +548,8 @@ export async function saveProductCertificates(db, productId, tags) {
 
 export async function searchProductsForCompat(db, query, excludeId) {
   const { results } = await db
-    .prepare('SELECT id, prod_code, title_tr FROM products WHERE (prod_code LIKE ? OR title_tr LIKE ?) AND id != ? LIMIT 15')
-    .bind(`%${query}%`, `%${query}%`, excludeId)
+    .prepare('SELECT id, prod_code, title_tr, title_en FROM products WHERE (prod_code LIKE ? OR title_tr LIKE ? OR title_en LIKE ?) AND id != ? LIMIT 15')
+    .bind(`%${query}%`, `%${query}%`, `%${query}%`, excludeId)
     .all();
   return results;
 }
