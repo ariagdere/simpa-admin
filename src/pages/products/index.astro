@@ -2,6 +2,7 @@
 // src/pages/products/index.astro
 export const prerender = false;
 
+import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getProductsAdmin, getCategoriesAdmin } from '../../lib/queries.js';
 import { env } from 'cloudflare:workers';
 
@@ -16,52 +17,11 @@ const [products, categories] = await Promise.all([
   getCategoriesAdmin(db),
 ]);
 ---
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ürünler — Admin Panel</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 32px 24px; }
-    .wrap { max-width: 1000px; margin: 0 auto; }
-    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    h1 { font-size: 20px; }
-    a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
-
-    .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-    .filters select, .filters input { padding: 7px 10px; border: 1px solid #d7d9dd; border-radius: 6px; font-size: 13px; font-family: inherit; background: #fff; }
-    .filters input { flex: 1; min-width: 180px; }
-
-    .add-btn { display: inline-block; background: #1e2535; color: #fff; font-size: 13.5px; font-weight: 600; padding: 9px 16px; border-radius: 6px; text-decoration: none; margin-bottom: 16px; }
-
-    .prod-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 18px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
-    .prod-code { font-size: 12px; font-family: ui-monospace, monospace; color: #6b7280; background: #f4f5f7; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
-    .prod-info { flex: 1; min-width: 0; }
-    .prod-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .prod-meta { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-    .brand-pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
-    .brand-pill.simpa { background: #e6f1fb; color: #0c447c; }
-    .brand-pill.superpress { background: #faece7; color: #712b13; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .status-dot.on { background: #22c55e; }
-    .status-dot.off { background: #d1d5db; }
-
-    .prod-actions { display: flex; gap: 8px; flex-shrink: 0; }
-    .btn-edit { font-size: 12.5px; font-weight: 600; color: #1e5fa8; text-decoration: none; padding: 6px 12px; border: 1px solid #d7d9dd; border-radius: 6px; }
-    .btn-delete { font-size: 12.5px; font-weight: 600; color: #b91c1c; background: none; border: 1px solid #f3d1d1; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-
-    .empty { text-align: center; padding: 48px 20px; color: #9ca3af; font-size: 14px; }
-    .count { font-size: 13px; color: #9ca3af; margin-bottom: 10px; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="top">
-      <h1>Ürünler</h1>
-      <a class="back" href="/">← Panel</a>
-    </div>
+<AdminLayout title="Ürünler" activeNav="products">
+  <div class="a-page-header">
+    <h1 class="a-h1">Ürünler</h1>
+  </div>
+  <div style="margin-bottom:16px"></div>
 
     <form class="filters" method="get">
       <select name="brand" onchange="this.form.submit()">
@@ -97,7 +57,6 @@ const [products, categories] = await Promise.all([
         </div>
       </div>
     ))}
-  </div>
 
   <script>
     document.querySelectorAll('.btn-delete').forEach((btn) => {
@@ -119,5 +78,4 @@ const [products, categories] = await Promise.all([
       });
     });
   </script>
-</body>
-</html>
+</AdminLayout>
