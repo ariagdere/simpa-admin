@@ -1,0 +1,150 @@
+---
+// src/pages/company-info/index.astro
+export const prerender = false;
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCompanyInfo } from '../../lib/queries.js';
+import { resolveBrand } from '../../lib/adminUtils.js';
+import { env } from 'cloudflare:workers';
+
+const db = env.DB;
+const brand = resolveBrand(Astro);
+const { info, socialLinks } = await getCompanyInfo(db, brand);
+
+const val = (v) => v ?? '';
+---
+<AdminLayout title="Şirket Künyesi" activeNav="company-info" showBrandSwitcher brand={brand}>
+  <div class="a-page-header">
+    <h1 class="a-h1">Şirket Künyesi</h1>
+  </div>
+  <p class="a-sub" style="margin-bottom:20px">Ünvan, adres, iletişim ve sosyal medya bilgileri — {brand} için.</p>
+
+  <form id="infoForm">
+    <div class="a-card">
+      <h2 class="a-h2">Temel Bilgiler</h2>
+      <div class="a-field">
+        <label>Ünvan</label>
+        <input type="text" class="a-input" name="unvan" value={val(info.unvan)} />
+      </div>
+      <div class="a-field">
+        <label>Adres</label>
+        <textarea class="a-textarea" name="adres" style="min-height:56px">{val(info.adres)}</textarea>
+      </div>
+      <div class="a-row2">
+        <div class="a-field">
+          <label>Sabit Telefon</label>
+          <input type="text" class="a-input" name="sabit_telefon" value={val(info.sabit_telefon)} placeholder="+90 216 000 00 00" />
+        </div>
+        <div class="a-field">
+          <label>WhatsApp Telefon <span class="a-hint">(ülke kodu + numara, boşluksuz)</span></label>
+          <input type="text" class="a-input" name="whatsapp_telefon" value={val(info.whatsapp_telefon)} placeholder="905xxxxxxxxx" />
+        </div>
+      </div>
+      <div class="a-field">
+        <label>E-posta</label>
+        <input type="text" class="a-input" name="email" value={val(info.email)} />
+      </div>
+    </div>
+
+    <div class="a-card">
+      <h2 class="a-h2">Analitik</h2>
+      <div class="a-field">
+        <label>Google Analytics Takip Kodu <span class="a-hint">(ör. G-XXXXXXXXXX)</span></label>
+        <input type="text" class="a-input" name="ga_tracking_id" value={val(info.ga_tracking_id)} placeholder="G-XXXXXXXXXX" />
+      </div>
+    </div>
+
+    <div class="a-card">
+      <h2 class="a-h2">Diğer Bilgi</h2>
+      <p class="a-hint" style="margin-bottom:10px;display:block">Yukarıdakilerin dışında eklemek istediğin serbest bir not (ör. çalışma saatleri).</p>
+      <div class="a-field">
+        <textarea class="a-textarea" name="diger_bilgi">{val(info.diger_bilgi)}</textarea>
+      </div>
+    </div>
+  </form>
+
+  <div class="a-card">
+    <h2 class="a-h2">Sosyal Medya</h2>
+    <div id="socialList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+      {socialLinks.map((s) => (
+        <div class="social-row" data-id={s.id} style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--a-bg);border-radius:var(--a-radius)">
+          <span style="font-size:13px;font-weight:600;min-width:90px">{s.platform}</span>
+          <span style="font-size:13px;color:var(--a-text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{s.url}</span>
+          <button type="button" class="social-remove a-btn a-btn-sm a-btn-danger">Kaldır</button>
+        </div>
+      ))}
+      {socialLinks.length === 0 && <p class="a-hint">Henüz sosyal medya bağlantısı eklenmemiş.</p>}
+    </div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="newPlatform" class="a-input" placeholder="Platform (ör. Instagram)" style="max-width:180px" />
+      <input type="text" id="newUrl" class="a-input" placeholder="https://..." />
+      <button type="button" id="addSocialBtn" class="a-btn">Ekle</button>
+    </div>
+  </div>
+
+  <div class="a-savebar">
+    <button type="button" id="saveBtn" class="a-btn a-btn-primary">Kaydet</button>
+    <span class="a-save-msg" id="saveMsg" style="display:none">Kaydedildi</span>
+    <span class="a-save-err" id="saveErr" style="display:none"></span>
+  </div>
+
+  <script define:vars={{ brand }}>
+    const saveBtn = document.getElementById('saveBtn');
+    const saveMsg = document.getElementById('saveMsg');
+    const saveErr = document.getElementById('saveErr');
+
+    saveBtn.addEventListener('click', async () => {
+      saveMsg.style.display = 'none';
+      saveErr.style.display = 'none';
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Kaydediliyor…';
+
+      const form = document.getElementById('infoForm');
+      const formData = new FormData(form);
+      const payload = { brand, ...Object.fromEntries(formData.entries()) };
+
+      try {
+        const res = await fetch('/api/company-info/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Kaydedilemedi.');
+        saveMsg.style.display = 'inline';
+        setTimeout(() => { saveMsg.style.display = 'none'; }, 2500);
+      } catch (err) {
+        saveErr.textContent = err.message || 'Kaydedilemedi.';
+        saveErr.style.display = 'inline';
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Kaydet';
+      }
+    });
+
+    document.getElementById('addSocialBtn').addEventListener('click', async () => {
+      const platform = document.getElementById('newPlatform').value.trim();
+      const url = document.getElementById('newUrl').value.trim();
+      if (!platform || !url) return;
+
+      const res = await fetch('/api/company-info/add-social', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand, platform, url }),
+      });
+      if (res.ok) window.location.reload();
+    });
+
+    document.querySelectorAll('.social-remove').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const row = btn.closest('.social-row');
+        const res = await fetch('/api/company-info/delete-social', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: row.dataset.id }),
+        });
+        if (res.ok) row.remove();
+      });
+    });
+  </script>
+</AdminLayout>
