@@ -113,6 +113,25 @@ export async function getPageSection(db, brand, pageKey, sectionKey, lang) {
 }
 
 /** Var olan bölümü günceller, yoksa oluşturur. */
+/** Admin panel için: bir markanın tüm sayfaları, sayfa bazında gruplanmış tüm bölümleriyle. */
+export async function getAllPageContentAdmin(db, brand) {
+  const { results } = await db.prepare('SELECT * FROM page_content WHERE brand = ? ORDER BY page_key, sort_order').bind(brand).all();
+  const pages = new Map();
+  for (const r of results) {
+    if (!pages.has(r.page_key)) pages.set(r.page_key, []);
+    pages.get(r.page_key).push(r);
+  }
+  return [...pages.entries()].map(([page_key, sections]) => ({ page_key, sections }));
+}
+
+export async function getPageSectionById(db, id) {
+  return db.prepare('SELECT * FROM page_content WHERE id = ?').bind(id).first();
+}
+
+export async function updatePageSectionById(db, id, contentTr, contentEn) {
+  await db.prepare("UPDATE page_content SET content_tr = ?, content_en = ?, updated_at = datetime('now') WHERE id = ?").bind(contentTr || null, contentEn || null, id).run();
+}
+
 export async function upsertPageSection(db, brand, pageKey, sectionKey, contentTr, contentEn, sortOrder = 0) {
   await db
     .prepare(
