@@ -87,13 +87,13 @@ const [products, categories] = await Promise.all([
         <span class="prod-code">{p.prod_code}</span>
         <span class={`status-dot ${p.is_active ? 'on' : 'off'}`} title={p.is_active ? 'Aktif' : 'Pasif'}></span>
         <div class="prod-info">
-          <div class="prod-title">{p.title_tr}{!p.title_en && <span style="color:#d97706"> (EN eksik)</span>}</div>
+          <div class="prod-title">{p.title_tr || p.title_en}{!p.title_tr && p.title_en && <span style="color:#d97706"> (TR eksik)</span>}{p.title_tr && !p.title_en && <span style="color:#d97706"> (EN eksik)</span>}</div>
           <div class="prod-meta">{p.category_name || 'Kategorisiz'}</div>
         </div>
         <span class={`brand-pill ${p.brand === 'Superpress' ? 'superpress' : 'simpa'}`}>{p.brand}</span>
         <div class="prod-actions">
           <a class="btn-edit" href={`/products/${p.id}`}>Düzenle</a>
-          <button type="button" class="btn-delete" data-id={p.id} data-name={p.title_tr}>Sil</button>
+          <button type="button" class="btn-delete" data-id={p.id} data-name={p.title_tr || p.title_en}>Sil</button>
         </div>
       </div>
     ))}
