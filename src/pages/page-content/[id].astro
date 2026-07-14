@@ -2,6 +2,7 @@
 // src/pages/page-content/[id].astro
 export const prerender = false;
 
+import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getPageSectionById } from '../../lib/queries.js';
 import { env } from 'cloudflare:workers';
 
@@ -25,48 +26,14 @@ const SECTION_LABELS = {
 
 const val = (v) => v ?? '';
 ---
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{SECTION_LABELS[section.section_key] || section.section_key} — Admin Panel</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 32px 24px 80px; }
-    .wrap { max-width: 780px; margin: 0 auto; }
-    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    h1 { font-size: 20px; }
-    a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
-    .breadcrumb { font-size: 13px; color: #9ca3af; margin-bottom: 20px; }
+<AdminLayout title={SECTION_LABELS[section.section_key] || section.section_key} activeNav="page-content">
+  <div class="a-page-header">
+    <h1 class="a-h1">{SECTION_LABELS[section.section_key] || section.section_key}</h1>
+    <a class="back" href={`/page-content?brand=${section.brand}`} style="font-size:13px;color:var(--a-text-secondary);text-decoration:none">← Listeye dön</a>
+  </div>
+    <div class="breadcrumb" style="font-size:13px;color:var(--a-text-muted);margin-bottom:20px">{section.brand} → {PAGE_LABELS[section.page_key] || section.page_key}</div>
 
-    .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 22px; margin-bottom: 16px; }
-    .field { margin-bottom: 4px; }
-    label { display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-    label .hint { font-weight: 400; color: #9ca3af; }
-    textarea {
-      width: 100%; padding: 12px; border: 1px solid #d7d9dd; border-radius: 6px; font-size: 13px; font-family: ui-monospace, monospace;
-      color: #1e2535; resize: vertical; min-height: 260px; line-height: 1.6;
-    }
-    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
-    .warn-box { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
-
-    .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e5e7eb; padding: 14px 24px; display: flex; justify-content: center; }
-    .save-bar-in { max-width: 780px; width: 100%; display: flex; gap: 10px; align-items: center; }
-    .btn-save { background: #1e2535; color: #fff; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 6px; border: none; cursor: pointer; }
-    .btn-save:disabled { opacity: .6; cursor: default; }
-    .save-msg { font-size: 13px; color: #22c55e; font-weight: 600; }
-    .save-err { font-size: 13px; color: #b91c1c; font-weight: 600; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="top">
-      <h1>{SECTION_LABELS[section.section_key] || section.section_key}</h1>
-      <a class="back" href={`/page-content?brand=${section.brand}`}>← Listeye dön</a>
-    </div>
-    <div class="breadcrumb">{section.brand} → {PAGE_LABELS[section.page_key] || section.page_key}</div>
+    <div class="warn-box" style="background:var(--a-accent-light);border:1px solid #c7d2fe;color:var(--a-accent);font-size:12.5px;padding:10px 14px;border-radius:var(--a-radius-lg);margin-bottom:16px">Bu alan HTML içerir — paragraf için <code>&lt;p&gt;...&lt;/p&gt;</code>, liste için <code>&lt;ul&gt;&lt;li&gt;...&lt;/li&gt;&lt;/ul&gt;</code>, kalın yazı için <code>&lt;strong&gt;...&lt;/strong&gt;</code> kullan. Etiketleri bozmamaya dikkat et.</div>
 
     <div class="warn-box">Bu alan HTML içerir — paragraf için <code>&lt;p&gt;...&lt;/p&gt;</code>, liste için <code>&lt;ul&gt;&lt;li&gt;...&lt;/li&gt;&lt;/ul&gt;</code>, kalın yazı için <code>&lt;strong&gt;...&lt;/strong&gt;</code> kullan. Etiketleri bozmamaya dikkat et.</div>
 
@@ -84,7 +51,6 @@ const val = (v) => v ?? '';
         </div>
       </div>
     </div>
-  </div>
 
   <div class="save-bar">
     <div class="save-bar-in">
@@ -128,5 +94,4 @@ const val = (v) => v ?? '';
       }
     });
   </script>
-</body>
-</html>
+</AdminLayout>
