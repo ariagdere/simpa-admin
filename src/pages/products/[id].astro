@@ -273,7 +273,7 @@ const val = (v) => v ?? '';
         <div id="compatList" style="display:flex;flex-direction:column;gap:6px">
           {compatList.map((p) => (
             <div class="compat-item" data-id={p.id} style="display:flex;align-items:center;justify-content:space-between;background:#f4f5f7;padding:8px 12px;border-radius:6px;font-size:13px">
-              <span><strong>{p.prod_code}</strong> — {p.title_tr}</span>
+              <span><strong>{p.prod_code}</strong> — {p.title_tr || p.title_en}</span>
               <button type="button" class="compat-remove" style="font-size:11px;color:#b91c1c;background:none;border:none;cursor:pointer">Kaldır</button>
             </div>
           ))}
@@ -574,7 +574,7 @@ const val = (v) => v ?? '';
           compatResults.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:#9ca3af">Sonuç yok</div>';
         } else {
           compatResults.innerHTML = filtered
-            .map((p) => `<div class="compat-result" data-id="${p.id}" data-code="${p.prod_code}" data-title="${p.title_tr}" style="padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #f1f2f4"><strong>${p.prod_code}</strong> — ${p.title_tr}</div>`)
+            .map((p) => `<div class="compat-result" data-id="${p.id}" data-code="${p.prod_code}" data-title="${p.title_tr || p.title_en}" style="padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #f1f2f4"><strong>${p.prod_code}</strong> — ${p.title_tr || p.title_en}</div>`)
             .join('');
         }
         compatResults.style.display = 'block';
