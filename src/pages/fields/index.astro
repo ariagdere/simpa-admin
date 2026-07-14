@@ -2,6 +2,7 @@
 // src/pages/fields/index.astro
 export const prerender = false;
 
+import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getFieldLabelsGrouped, getDistinctGroups } from '../../lib/queries.js';
 import { env } from 'cloudflare:workers';
 
@@ -13,51 +14,10 @@ const [productGroups, variantGroups, productDistinctGroups, variantDistinctGroup
   getDistinctGroups(db, 'variant'),
 ]);
 ---
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Teknik Alan Tanımları — Admin Panel</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 32px 24px 60px; }
-    .wrap { max-width: 860px; margin: 0 auto; }
-    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    h1 { font-size: 20px; }
-    a.back { font-size: 13px; color: #6b7280; text-decoration: none; }
-    .sub { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
-
-    .scope-section { margin-bottom: 40px; }
-    .scope-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-    .scope-desc { font-size: 13px; color: #9ca3af; margin-bottom: 16px; }
-
-    .new-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
-    .new-section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin-bottom: 12px; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr 90px 1fr; gap: 10px; margin-bottom: 10px; }
-    .form-row input, .form-row select { padding: 8px 9px; border: 1px solid #d7d9dd; border-radius: 6px; font-size: 13px; font-family: inherit; }
-    .new-group-fields { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-    .new-group-fields.show { display: grid; }
-    .btn-add { background: #1e2535; color: #fff; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; }
-    .form-err { font-size: 12.5px; color: #b91c1c; margin-top: 6px; display: none; }
-
-    .group-block { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
-    .group-header { background: #f4f5f7; padding: 10px 16px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #4a5568; }
-    .field-row { display: grid; grid-template-columns: 1fr 1fr 90px 90px; gap: 8px; align-items: center; padding: 8px 16px; border-top: 1px solid #f1f2f4; }
-    .field-row input { padding: 6px 8px; border: 1px solid #d7d9dd; border-radius: 5px; font-size: 12.5px; font-family: inherit; }
-    .field-key { font-family: ui-monospace, monospace; font-size: 11px; color: #9ca3af; grid-column: 1 / -1; margin-top: -4px; }
-    .row-btns { display: flex; gap: 4px; }
-    .row-save { font-size: 11px; font-weight: 600; color: #1e5fa8; background: #eff6ff; border: none; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
-    .row-del { font-size: 11px; font-weight: 600; color: #b91c1c; background: #fef2f2; border: none; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
-    .empty-note { font-size: 13px; color: #9ca3af; padding: 4px 0; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="top">
-      <h1>Teknik Alan Tanımları</h1>
-      <a class="back" href="/">← Panel</a>
-    </div>
+<AdminLayout title="Teknik Alan Tanımları" activeNav="fields">
+  <div class="a-page-header">
+    <h1 class="a-h1">Teknik Alan Tanımları</h1>
+  </div>
     <p class="sub">İki ayrı kapsam var: <strong>Ürün Bilgileri</strong> (künye kutusunda, ürün başına tek değer) ve <strong>Varyant Teknik Verisi</strong> (her varyant için ayrı değer, tablo halinde). Birbirine karışmaz.</p>
 
     <div class="scope-section">
@@ -141,7 +101,6 @@ const [productGroups, variantGroups, productDistinctGroups, variantDistinctGroup
         </div>
       ))}
     </div>
-  </div>
 
   <script define:vars={{ productDistinctGroups, variantDistinctGroups }}>
     document.querySelectorAll('.new-section').forEach((section) => {
@@ -247,5 +206,4 @@ const [productGroups, variantGroups, productDistinctGroups, variantDistinctGroup
       });
     });
   </script>
-</body>
-</html>
+</AdminLayout>
