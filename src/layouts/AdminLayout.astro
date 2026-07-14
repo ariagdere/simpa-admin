@@ -6,7 +6,7 @@ import '../styles/admin.css';
 
 export interface Props {
   title: string;
-  activeNav: 'home' | 'hero-slides' | 'categories' | 'products' | 'fields' | 'page-content' | 'company-info';
+  activeNav: 'home' | 'hero-slides' | 'categories' | 'products' | 'fields' | 'page-content' | 'company-info' | 'disaster-recovery';
   showBrandSwitcher?: boolean;
   brand?: string;
   wide?: boolean;
@@ -32,6 +32,7 @@ const ICONS: Record<string, string> = {
   list: '<path d="M7 5h10M7 10h10M7 15h10"/><circle cx="3.5" cy="5" r="1"/><circle cx="3.5" cy="10" r="1"/><circle cx="3.5" cy="15" r="1"/>',
   doc: '<path d="M6 2.5h6l3 3V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17V3a.5.5 0 0 1 .5-.5Z"/><path d="M12 2.5V6h3.5"/><path d="M7.5 10h5M7.5 13h5"/>',
   building: '<path d="M4 17V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v13"/><path d="M12 8h3a1 1 0 0 1 1 1v8"/><path d="M6.5 6.5h1M9.5 6.5h1M6.5 9.5h1M9.5 9.5h1M6.5 12.5h1M9.5 12.5h1"/>',
+  shield: '<path d="M10 2.5 4 5v5c0 4 2.6 6.5 6 7.5 3.4-1 6-3.5 6-7.5V5l-6-2.5Z"/><path d="M7.5 9.8l1.8 1.8 3.2-3.6"/>',
 };
 ---
 <!DOCTYPE html>
@@ -71,6 +72,17 @@ const ICONS: Record<string, string> = {
         >
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" set:html={ICONS.building} />
           Şirket Künyesi
+        </a>
+        <a
+          href="/disaster-recovery"
+          style={`display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--a-radius);font-size:13px;text-decoration:none;${
+            activeNav === 'disaster-recovery'
+              ? 'background:var(--a-accent-light);color:var(--a-accent);font-weight:600;'
+              : 'color:var(--a-text-secondary);font-weight:500;'
+          }`}
+        >
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" set:html={ICONS.shield} />
+          Yedekleme Rehberi
         </a>
       </nav>
     </aside>
