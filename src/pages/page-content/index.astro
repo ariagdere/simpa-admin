@@ -30,8 +30,8 @@ const SECTION_LABELS = {
 
     {pages.length === 0 && <div class="empty-note">Bu markada henüz içerik yok.</div>}
     {pages.map((p) => (
-      <div class="page-block">
-        <div class="page-header">{PAGE_LABELS[p.page_key] || p.page_key}</div>
+      <div class="group-block">
+        <div class="group-header">{PAGE_LABELS[p.page_key] || p.page_key}</div>
         {p.sections.map((s) => (
           <div class="section-row">
             <div>
