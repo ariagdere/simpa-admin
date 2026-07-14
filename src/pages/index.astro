@@ -1,6 +1,7 @@
 ---
 // src/pages/index.astro
 export const prerender = false;
+import AdminLayout from '../layouts/AdminLayout.astro';
 import { getHeroSlides } from '../lib/queries.js';
 import { env } from 'cloudflare:workers';
 
@@ -9,48 +10,45 @@ const [simpaSlides, superpressSlides] = await Promise.all([
   getHeroSlides(db, 'Simpa'),
   getHeroSlides(db, 'Superpress'),
 ]);
+
+const NAV = [
+  { href: '/hero-slides', label: 'Hero Slaytlar', desc: 'Ana sayfa slider içeriği' },
+  { href: '/categories', label: 'Kategoriler', desc: 'Ürün kategorileri' },
+  { href: '/products', label: 'Ürünler', desc: 'Temel bilgi, künye, teknik veri, görsel' },
+  { href: '/fields', label: 'Teknik Alan Tanımları', desc: 'Künye ve varyant alanları' },
+  { href: '/page-content', label: 'Statik Sayfa İçerikleri', desc: 'Hakkımızda, Gizlilik ve Güvenlik' },
+  { href: '/company-info', label: 'Şirket Künyesi', desc: 'Ünvan, adres, iletişim, sosyal medya' },
+];
 ---
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Panel</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e2535; padding: 40px 24px; }
-    .wrap { max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 22px; margin-bottom: 6px; }
-    .sub { color: #6b7280; font-size: 14px; margin-bottom: 32px; }
-    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; }
-    .card h2 { font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
-    .row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid #f1f2f4; font-size: 13.5px; }
-    .row:first-of-type { border-top: none; }
-    .muted { color: #9ca3af; }
-    .badge { font-size: 11px; background: #eef1f5; color: #4a5568; padding: 2px 8px; border-radius: 10px; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>Admin Panel</h1>
-    <p class="sub">Simpa Elektrik &amp; Superpress ortak yönetim paneli — iskelet devrede.</p>
+<AdminLayout title="Panel" activeNav="home">
+  <div class="a-page-header">
+    <h1 class="a-h1">Admin Panel</h1>
+  </div>
+  <p class="a-sub" style="margin-bottom:28px">Simpa Elektrik &amp; Superpress ortak yönetim paneli.</p>
 
-    <div class="card">
-      <h2><span class="dot"></span> D1 bağlantısı çalışıyor</h2>
-      <div class="row"><span>Simpa hero slaytları</span><span class="badge">{simpaSlides.length} kayıt</span></div>
-      <div class="row"><span>Superpress hero slaytları</span><span class="badge">{superpressSlides.length} kayıt</span></div>
-    </div>
-
-    <div class="card">
-      <h2>Sırada</h2>
-      <div class="row"><a href="/hero-slides" style="color:#1e2535;font-weight:600;text-decoration:none">Hero Slaytlar — liste + düzenleme →</a></div>
-      <div class="row"><a href="/categories" style="color:#1e2535;font-weight:600;text-decoration:none">Kategoriler — liste + düzenleme →</a></div>
-      <div class="row"><a href="/products" style="color:#1e2535;font-weight:600;text-decoration:none">Ürünler — liste + düzenleme (taslak) →</a></div>
-      <div class="row"><a href="/fields" style="color:#1e2535;font-weight:600;text-decoration:none">Teknik Alan Tanımları →</a></div>
-      <div class="row"><a href="/page-content" style="color:#1e2535;font-weight:600;text-decoration:none">Statik Sayfa İçerikleri →</a></div>
-      <div class="row"><span>Statik Sayfa İçerikleri</span><span class="muted">yapılacak</span></div>
+  <div class="a-card">
+    <h2 class="a-h2">Durum</h2>
+    <div style="display:flex;gap:24px">
+      <div>
+        <div style="font-size:12px;color:var(--a-text-secondary);margin-bottom:4px">Simpa hero slaytları</div>
+        <div style="font-size:20px;font-weight:600">{simpaSlides.length}</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--a-text-secondary);margin-bottom:4px">Superpress hero slaytları</div>
+        <div style="font-size:20px;font-weight:600">{superpressSlides.length}</div>
+      </div>
     </div>
   </div>
-</body>
-</html>
+
+  <div class="a-card" style="padding:0;overflow:hidden">
+    {NAV.map((item, i) => (
+      <a href={item.href} style={`display:flex;align-items:center;justify-content:space-between;padding:16px 22px;text-decoration:none;color:inherit;${i > 0 ? 'border-top:1px solid var(--a-border-light)' : ''}`}>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--a-text)">{item.label}</div>
+          <div style="font-size:12.5px;color:var(--a-text-secondary);margin-top:2px">{item.desc}</div>
+        </div>
+        <span style="color:var(--a-text-muted);font-size:16px">→</span>
+      </a>
+    ))}
+  </div>
+</AdminLayout>
