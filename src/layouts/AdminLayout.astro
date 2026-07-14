@@ -1,0 +1,104 @@
+---
+// src/layouts/AdminLayout.astro
+// Ortak kabuk: kalıcı sol menü + (opsiyonel) marka geçişi. Marka seçimi cookie'de
+// tutulur, sayfalar arası gezinirken tekrar tekrar seçmene gerek kalmaz.
+import '../styles/admin.css';
+
+export interface Props {
+  title: string;
+  activeNav: 'home' | 'hero-slides' | 'categories' | 'products' | 'fields' | 'page-content' | 'company-info';
+  showBrandSwitcher?: boolean;
+  brand?: string;
+  wide?: boolean;
+  narrow?: boolean;
+}
+
+const { title, activeNav, showBrandSwitcher = false, brand = 'Simpa', wide = false, narrow = false } = Astro.props;
+
+const NAV_ITEMS = [
+  { key: 'home', href: '/', label: 'Panel', icon: 'home' },
+  { key: 'hero-slides', href: '/hero-slides', label: 'Hero Slaytlar', icon: 'layout' },
+  { key: 'categories', href: '/categories', label: 'Kategoriler', icon: 'grid' },
+  { key: 'products', href: '/products', label: 'Ürünler', icon: 'box' },
+  { key: 'fields', href: '/fields', label: 'Teknik Alan Tanımları', icon: 'list' },
+  { key: 'page-content', href: '/page-content', label: 'Statik Sayfa İçerikleri', icon: 'doc' },
+];
+
+const ICONS: Record<string, string> = {
+  home: '<path d="M3 9.5 10 4l7 5.5V16a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1V9.5Z"/>',
+  layout: '<rect x="3" y="4" width="14" height="5" rx="1"/><rect x="3" y="11" width="6" height="5" rx="1"/><rect x="11" y="11" width="6" height="5" rx="1"/>',
+  grid: '<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/>',
+  box: '<path d="M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Z"/><path d="M3 6.5 10 10l7-3.5M10 10v7"/>',
+  list: '<path d="M7 5h10M7 10h10M7 15h10"/><circle cx="3.5" cy="5" r="1"/><circle cx="3.5" cy="10" r="1"/><circle cx="3.5" cy="15" r="1"/>',
+  doc: '<path d="M6 2.5h6l3 3V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17V3a.5.5 0 0 1 .5-.5Z"/><path d="M12 2.5V6h3.5"/><path d="M7.5 10h5M7.5 13h5"/>',
+  building: '<path d="M4 17V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v13"/><path d="M12 8h3a1 1 0 0 1 1 1v8"/><path d="M6.5 6.5h1M9.5 6.5h1M6.5 9.5h1M9.5 9.5h1M6.5 12.5h1M9.5 12.5h1"/>',
+};
+---
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} — Admin Panel</title>
+</head>
+<body>
+  <div style="display:flex;min-height:100vh">
+
+    <aside style="width:220px;flex-shrink:0;background:var(--a-sidebar-bg);border-right:1px solid var(--a-border);padding:20px 12px;position:fixed;top:0;bottom:0;left:0;overflow-y:auto">
+      <div style="font-size:14px;font-weight:700;padding:0 10px;margin-bottom:20px;color:var(--a-text)">Simpa / Superpress</div>
+      <nav style="display:flex;flex-direction:column;gap:2px">
+        {NAV_ITEMS.map((item) => (
+          <a
+            href={item.href}
+            style={`display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--a-radius);font-size:13px;text-decoration:none;${
+              activeNav === item.key
+                ? 'background:var(--a-accent-light);color:var(--a-accent);font-weight:600;'
+                : 'color:var(--a-text-secondary);font-weight:500;'
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" set:html={ICONS[item.icon]} />
+            {item.label}
+          </a>
+        ))}
+        <div style="height:1px;background:var(--a-border-light);margin:8px 10px"></div>
+        <a
+          href="/company-info"
+          style={`display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--a-radius);font-size:13px;text-decoration:none;${
+            activeNav === 'company-info'
+              ? 'background:var(--a-accent-light);color:var(--a-accent);font-weight:600;'
+              : 'color:var(--a-text-secondary);font-weight:500;'
+          }`}
+        >
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" set:html={ICONS.building} />
+          Şirket Künyesi
+        </a>
+      </nav>
+    </aside>
+
+    <div style="margin-left:220px;flex:1;display:flex;flex-direction:column;min-width:0">
+      {showBrandSwitcher && (
+        <div style="display:flex;justify-content:flex-end;padding:14px 32px 0">
+          <div id="brandSwitcher" style="display:flex;background:var(--a-bg);border-radius:var(--a-radius);padding:3px;gap:2px;border:1px solid var(--a-border)">
+            <button type="button" class="brand-opt" data-brand="Simpa" style={`padding:6px 14px;border-radius:6px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;font-family:inherit;${brand === 'Simpa' ? 'background:var(--a-surface);color:var(--a-text);box-shadow:var(--a-shadow)' : 'background:transparent;color:var(--a-text-secondary)'}`}>Simpa Elektrik</button>
+            <button type="button" class="brand-opt" data-brand="Superpress" style={`padding:6px 14px;border-radius:6px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;font-family:inherit;${brand === 'Superpress' ? 'background:var(--a-surface);color:var(--a-text);box-shadow:var(--a-shadow)' : 'background:transparent;color:var(--a-text-secondary)'}`}>Superpress</button>
+          </div>
+        </div>
+      )}
+
+      <main style={`flex:1;padding:24px 32px 80px;${wide ? 'max-width:1100px' : narrow ? 'max-width:620px' : 'max-width:900px'}`}>
+        <slot />
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.brand-opt').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const brand = btn.getAttribute('data-brand');
+        document.cookie = `admin_brand=${brand}; path=/; max-age=31536000`;
+        window.location.reload();
+      });
+    });
+  </script>
+</body>
+</html>
