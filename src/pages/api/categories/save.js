@@ -42,7 +42,15 @@ export async function POST({ request }) {
       return new Response(JSON.stringify({ error: `"${slug}" slug'ı zaten başka bir kategoride kullanılıyor.` }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const fields = { name_tr: nameTr, name_en: nameEn, slug, image_url: body.image_url || null };
+    // brand: '' / gönderilmemiş -> NULL (paylaşılan, her iki sitede görünür).
+    // Başka bir değer gelirse (form dışından beklenmedik bir istek vb.) reddet.
+    const allowedBrands = ['', 'Simpa', 'Superpress'];
+    const brand = body.brand ?? '';
+    if (!allowedBrands.includes(brand)) {
+      return new Response(JSON.stringify({ error: 'Geçersiz marka değeri.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const fields = { name_tr: nameTr, name_en: nameEn, slug, image_url: body.image_url || null, brand: brand || null };
 
     if (!id) {
       id = await createCategory(db, fields);
