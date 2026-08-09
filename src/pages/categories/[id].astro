@@ -12,7 +12,7 @@ const isNew = id === 'new';
 
 let category;
 if (isNew) {
-  category = { id: null, name_tr: '', name_en: '', slug: '', image_url: '' };
+  category = { id: null, name_tr: '', name_en: '', slug: '', image_url: '', brand: '' };
 } else {
   category = await getCategoryById(db, Number(id));
   if (!category) {
@@ -36,6 +36,14 @@ const val = (v) => v ?? '';
         <div class="row2">
           <div class="field"><label>İsim (TR) *</label><input type="text" name="name_tr" value={val(category.name_tr)} required /></div>
           <div class="field"><label>İsim (EN)</label><input type="text" name="name_en" value={val(category.name_en)} /></div>
+        </div>
+        <div class="field">
+          <label>Marka <span class="hint">(hangi sitede görünsün — ürünü olmasa bile)</span></label>
+          <select name="brand">
+            <option value="" selected={val(category.brand) === ''}>Her ikisi de (paylaşılan)</option>
+            <option value="Simpa" selected={val(category.brand) === 'Simpa'}>Sadece Simpa</option>
+            <option value="Superpress" selected={val(category.brand) === 'Superpress'}>Sadece Superpress</option>
+          </select>
         </div>
         <div class="field">
           <label>Slug <span class="hint">(URL'de görünen kısım, örn. /kategori/kablo-pabuclari)</span></label>
