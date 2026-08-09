@@ -9,25 +9,35 @@ export async function POST({ request }) {
     const body = await request.json();
     const db = env.DB;
 
-    let id = body.id ? Number(body.id) : null;
-    if (!id) {
-      id = await createProduct(db, body.brand);
-    }
-
     const prodCode = (body.prod_code || '').trim();
     const titleTr = (body.title_tr || '').trim();
+    const titleEn = (body.title_en || '').trim();
 
-    if (!prodCode || !titleTr) {
-      return new Response(JSON.stringify({ error: 'Ürün kodu ve Türkçe başlık zorunlu.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    // Önce doğrulama, sonra veritabanı yazma — kategori/save.js'te olduğu gibi,
+    // doğrulama başarısız olduğunda yarım kalmış "Yeni Ürün" satırı bırakmamak için.
+    if (!prodCode) {
+      return new Response(JSON.stringify({ error: 'Ürün kodu zorunlu.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
+    // Sadece EN başlıklı ürünler de olabiliyor (henüz TR çevirisi yapılmamış) —
+    // TR'yi tek başına zorunlu tutmak yerine en az birinin dolu olmasını istiyoruz.
+    if (!titleTr && !titleEn) {
+      return new Response(JSON.stringify({ error: 'En az bir dilde başlık girilmeli (Türkçe ya da İngilizce).' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    let id = body.id ? Number(body.id) : null;
+
     if (await isProdCodeTaken(db, prodCode, id)) {
       return new Response(JSON.stringify({ error: `"${prodCode}" kodu zaten başka bir üründe kullanılıyor.` }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
+    if (!id) {
+      id = await createProduct(db, body.brand);
+    }
+
     await updateProduct(db, id, {
       prod_code: prodCode,
-      title_tr: titleTr,
-      title_en: body.title_en || null,
+      title_tr: titleTr || null,
+      title_en: titleEn || null,
       category_id: body.category_id ? Number(body.category_id) : null,
       brand: body.brand,
       drawing_ref: body.drawing_ref || null,
