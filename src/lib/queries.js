@@ -172,14 +172,14 @@ export async function createCategory(db, fields) {
   // yoksa D1 "NOT NULL constraint failed" ile patlar (bkz. sohbet açıklaması).
   const { meta } = await db
     .prepare(
-      'INSERT INTO categories (name_tr, name_en, slug, image_url, sort_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories))'
+      'INSERT INTO categories (name_tr, name_en, slug, image_url, brand, sort_order) VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories))'
     )
-    .bind(fields.name_tr, fields.name_en, fields.slug, fields.image_url ?? null)
+    .bind(fields.name_tr, fields.name_en, fields.slug, fields.image_url ?? null, fields.brand || null)
     .run();
   return meta.last_row_id;
 }
 
-const CATEGORY_FIELDS = ['name_tr', 'name_en', 'slug', 'image_url'];
+const CATEGORY_FIELDS = ['name_tr', 'name_en', 'slug', 'image_url', 'brand'];
 
 export async function updateCategory(db, id, fields) {
   const keys = Object.keys(fields).filter((k) => CATEGORY_FIELDS.includes(k));
