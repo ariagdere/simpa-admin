@@ -12,7 +12,7 @@ const categories = await getCategoriesAdmin(env.DB);
   <div class="a-page-header">
     <h1 class="a-h1">Kategoriler</h1>
   </div>
-    <p class="sub">Simpa ve Superpress arasında paylaşılan tek liste — bir kategori sadece ilgili markadan ürünü varsa o sitede görünür, ayrıca marka ataması yapmana gerek yok.</p>
+    <p class="sub">Simpa ve Superpress arasında paylaşılan tek liste. Bir kategori, "Marka" alanında seçtiğin sitede görünür (ürünü olmasa bile); "Her ikisi de" seçiliyse iki sitede de görünür.</p>
 
     <a class="add-btn" href="/categories/new">+ Yeni Kategori</a>
 
@@ -27,7 +27,11 @@ const categories = await getCategoriesAdmin(env.DB);
             {c.image_url ? <img src={c.image_url} alt="" /> : <span class="cat-thumb-empty">yok</span>}
           </div>
           <div class="cat-info">
-            <div class="cat-name">{c.name_tr}{!c.name_en && <span style="color:#d97706"> (EN eksik)</span>}</div>
+            <div class="cat-name">
+              {c.name_tr}
+              {!c.name_en && <span style="color:#d97706"> (EN eksik)</span>}
+              {c.brand && <span style="color:var(--a-text-secondary);font-weight:500;font-size:12px"> · {c.brand === 'Simpa' ? 'Sadece Simpa' : 'Sadece Superpress'}</span>}
+            </div>
             <div class="cat-meta">/{c.slug}</div>
           </div>
           <div class="cat-counts">
