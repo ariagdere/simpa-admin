@@ -20,12 +20,16 @@ export async function POST({ request }) {
     const body = await request.json();
     const db = env.DB;
 
-    // Önce TÜM doğrulamalar, ardından veritabanı yazma — yarım kalmış
-    // "Yeni Kategori" satırlarının birikmesini önlemek için (bkz. sohbet açıklaması).
+    // Önce TÜM doğrulamalar, ardından veritabanı yazma — hem yarım kalmış
+    // satırların birikmesini hem de eksik-alan hatasını önlemek için
+    // (bkz. sohbet açıklaması: name_en ve slug şemada NOT NULL).
     const nameTr = (body.name_tr || '').trim();
     if (!nameTr) {
       return new Response(JSON.stringify({ error: 'Türkçe isim zorunlu.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
+
+    // name_en de NOT NULL — boş bırakılırsa EN çevirisi eklenene kadar Türkçe isme düşer.
+    const nameEn = (body.name_en || '').trim() || nameTr;
 
     let slug = (body.slug || '').trim() || slugify(nameTr);
     if (!slug) {
@@ -38,16 +42,13 @@ export async function POST({ request }) {
       return new Response(JSON.stringify({ error: `"${slug}" slug'ı zaten başka bir kategoride kullanılıyor.` }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
-    if (!id) {
-      id = await createCategory(db);
-    }
+    const fields = { name_tr: nameTr, name_en: nameEn, slug, image_url: body.image_url || null };
 
-    await updateCategory(db, id, {
-      name_tr: nameTr,
-      name_en: body.name_en || null,
-      slug,
-      image_url: body.image_url || null,
-    });
+    if (!id) {
+      id = await createCategory(db, fields);
+    } else {
+      await updateCategory(db, id, fields);
+    }
 
     return new Response(JSON.stringify({ success: true, id }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
