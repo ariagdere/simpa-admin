@@ -167,10 +167,14 @@ export async function getCategoryById(db, id) {
   return db.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();
 }
 
-export async function createCategory(db) {
+export async function createCategory(db, fields) {
+  // Şemada name_en ve slug NOT NULL — ikisini de INSERT anında set etmemiz gerekiyor,
+  // yoksa D1 "NOT NULL constraint failed" ile patlar (bkz. sohbet açıklaması).
   const { meta } = await db
-    .prepare('INSERT INTO categories (name_tr, sort_order) VALUES (?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories))')
-    .bind('Yeni Kategori')
+    .prepare(
+      'INSERT INTO categories (name_tr, name_en, slug, image_url, sort_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories))'
+    )
+    .bind(fields.name_tr, fields.name_en, fields.slug, fields.image_url ?? null)
     .run();
   return meta.last_row_id;
 }
