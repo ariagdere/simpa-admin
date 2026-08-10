@@ -305,7 +305,7 @@ export async function getFieldLabels(db) {
 
 /** Bir ürünün tüm varyantları + her birinin teknik özellik değerleri, düzenleme için düz obje halinde. */
 export async function getProductVariantsAdmin(db, productId) {
-  const { results: variants } = await db.prepare('SELECT id, variant_code, sort_order FROM product_variants WHERE product_id = ? ORDER BY sort_order').bind(productId).all();
+  const { results: variants } = await db.prepare('SELECT id, variant_code, sort_order FROM product_variants WHERE product_id = ? ORDER BY variant_code').bind(productId).all();
   if (variants.length === 0) return [];
   const variantIds = variants.map((v) => v.id);
   const placeholders = variantIds.map(() => '?').join(',');
