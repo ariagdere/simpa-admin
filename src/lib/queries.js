@@ -319,13 +319,23 @@ export async function getProductVariantsAdmin(db, productId) {
 }
 
 /** Tek bir varyant satırını (kod + tüm özellik değerleri) kaydeder — yoksa oluşturur. */
-export async function saveVariantRow(db, productId, variantId, variantCode, sortOrder, values) {
+export async function saveVariantRow(db, productId, variantId, variantCode, values) {
   let id = variantId;
   if (!id) {
-    const { meta } = await db.prepare('INSERT INTO product_variants (product_id, variant_code, sort_order) VALUES (?, ?, ?)').bind(productId, variantCode, sortOrder).run();
+    // Yeni satır: her zaman mevcut en yüksek sort_order'ın bir fazlasına (sona) eklenir.
+    // Önceden buraya DOM'daki satır indeksi (0,1,2...) gönderiliyordu — bu, Excel
+    // importundan kalma id-tabanlı sort_order'larla (binlerce) hiç uyumlu değildi ve
+    // düzenlenen satırın "en üste" fırlamasına sebep oluyordu (bkz. sohbet açıklaması).
+    const { meta } = await db
+      .prepare(
+        'INSERT INTO product_variants (product_id, variant_code, sort_order) VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM product_variants WHERE product_id = ?))'
+      )
+      .bind(productId, variantCode, productId)
+      .run();
     id = meta.last_row_id;
   } else {
-    await db.prepare('UPDATE product_variants SET variant_code = ?, sort_order = ? WHERE id = ?').bind(variantCode, sortOrder, id).run();
+    // Mevcut satırı düzenlemek sırasını DEĞİŞTİRMEMELİ — sort_order'a hiç dokunulmuyor.
+    await db.prepare('UPDATE product_variants SET variant_code = ? WHERE id = ?').bind(variantCode, id).run();
   }
 
   for (const [key, value] of Object.entries(values)) {
