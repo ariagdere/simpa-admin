@@ -210,6 +210,49 @@ export async function reorderCategories(db, ids) {
   await db.batch(stmts);
 }
 
+// ───────────────────────────── PRODUCTS SIRALAMA ─────────────────────────────
+
+/** Filtresiz, TAM ürün sırasını (sadece id listesi) döner — "sıraya taşı" hesaplaması için. */
+export async function getAllProductIdsInOrder(db) {
+  const { results } = await db.prepare('SELECT id FROM products ORDER BY sort_order').all();
+  return results.map((r) => r.id);
+}
+
+export async function reorderProducts(db, ids) {
+  const stmts = ids.map((id, i) => db.prepare('UPDATE products SET sort_order = ? WHERE id = ?').bind(i, id));
+  await db.batch(stmts);
+}
+
+/** Tek bir ürünü, TAM listede verilen 1-indexed pozisyona taşır (aradakiler otomatik kayar). */
+export async function moveProductToPosition(db, id, newPosition) {
+  const ids = await getAllProductIdsInOrder(db);
+  const currentIndex = ids.indexOf(Number(id));
+  if (currentIndex === -1) throw new Error('Ürün bulunamadı.');
+  ids.splice(currentIndex, 1);
+  const targetIndex = Math.max(0, Math.min(ids.length, Number(newPosition) - 1));
+  ids.splice(targetIndex, 0, Number(id));
+  await reorderProducts(db, ids);
+}
+
+export async function reorderProductVariants(db, ids) {
+  const stmts = ids.map((id, i) => db.prepare('UPDATE product_variants SET sort_order = ? WHERE id = ?').bind(i, id));
+  await db.batch(stmts);
+}
+
+/** Tek bir varyant satırını, kendi ürünü içindeki 1-indexed pozisyona taşır. */
+export async function moveVariantToPosition(db, variantId, newPosition) {
+  const row = await db.prepare('SELECT product_id FROM product_variants WHERE id = ?').bind(variantId).first();
+  if (!row) throw new Error('Varyant bulunamadı.');
+  const { results } = await db.prepare('SELECT id FROM product_variants WHERE product_id = ? ORDER BY sort_order').bind(row.product_id).all();
+  const ids = results.map((r) => r.id);
+  const currentIndex = ids.indexOf(Number(variantId));
+  if (currentIndex === -1) throw new Error('Varyant bulunamadı.');
+  ids.splice(currentIndex, 1);
+  const targetIndex = Math.max(0, Math.min(ids.length, Number(newPosition) - 1));
+  ids.splice(targetIndex, 0, Number(variantId));
+  await reorderProductVariants(db, ids);
+}
+
 // ───────────────────────────── PRODUCTS ─────────────────────────────
 
 export async function getProductsAdmin(db, { brand, categoryId, search } = {}) {
@@ -305,7 +348,7 @@ export async function getFieldLabels(db) {
 
 /** Bir ürünün tüm varyantları + her birinin teknik özellik değerleri, düzenleme için düz obje halinde. */
 export async function getProductVariantsAdmin(db, productId) {
-  const { results: variants } = await db.prepare('SELECT id, variant_code, sort_order FROM product_variants WHERE product_id = ? ORDER BY variant_code').bind(productId).all();
+  const { results: variants } = await db.prepare('SELECT id, variant_code, sort_order FROM product_variants WHERE product_id = ? ORDER BY sort_order').bind(productId).all();
   if (variants.length === 0) return [];
   const variantIds = variants.map((v) => v.id);
   const placeholders = variantIds.map(() => '?').join(',');
