@@ -273,6 +273,11 @@ table.vtable input.code-input { min-width: 120px; font-family: ui-monospace, mon
 .cat-order, .slide-order { display: flex; flex-direction: column; gap: 2px; }
 .cat-order button, .slide-order button, .move-up, .move-down { width: 22px; height: 18px; border: 1px solid var(--a-border); background: var(--a-surface); border-radius: 4px; cursor: pointer; font-size: 10px; color: var(--a-text-secondary); }
 .cat-order button:disabled, .slide-order button:disabled { opacity: .3; cursor: default; }
+.pos-field { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+.pos-field label { font-size: 10px; color: var(--a-text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.pos-input { width: 52px; text-align: center; padding: 4px 2px; border: 1px solid var(--a-border); border-radius: 4px; font-size: 13px; font-family: inherit; color: var(--a-text); }
+.variant-order-cell { display: flex; align-items: center; gap: 6px; }
+.variant-order-cell .v-pos-input { width: 44px; text-align: center; padding: 3px 2px; border: 1px solid var(--a-border); border-radius: 4px; font-size: 12px; font-family: inherit; color: var(--a-text); }
 .cat-thumb { width: 40px; height: 40px; border-radius: var(--a-radius); background: var(--a-bg); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .cat-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .cat-thumb-empty { font-size: 10px; color: #cbd0d6; }
