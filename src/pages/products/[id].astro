@@ -99,6 +99,17 @@ const val = (v) => v ?? '';
           </div>
           <div class="field"><label>Teknik Çizim Referansı</label><input type="text" name="drawing_ref" value={val(product.drawing_ref)} /></div>
         </div>
+        {!isNew && (
+          <div class="row2">
+            <div class="field">
+              <label>Sıra No <span style="font-weight:400;color:#9ca3af">— genel ürün listesindeki (72 üründen) yeri</span></label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="number" id="ownPositionInput" min="1" value={product.sort_order + 1} style="width:80px" />
+                <button type="button" id="applyOwnPosition" class="btn-edit" style="padding:8px 14px">Uygula</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div class="toggle-row">
           <div><div class="toggle-label">Aktif</div><div class="toggle-desc">Kapalıysa sitede hiç görünmez.</div></div>
           <label class="switch"><input type="checkbox" name="is_active" checked={!!product.is_active} /><span class="track"></span><span class="thumb"></span></label>
@@ -229,6 +240,7 @@ const val = (v) => v ?? '';
           <table class="vtable" id="vtable">
             <thead>
               <tr>
+                <th rowspan="2" style="width:70px">Sıra</th>
                 <th rowspan="2">Varyant Kodu</th>
                 {fieldGroups.map((g) => (
                   g.group_key
@@ -242,8 +254,15 @@ const val = (v) => v ?? '';
               </tr>
             </thead>
             <tbody id="vtableBody">
-              {variants.map((v) => (
+              {variants.map((v, i) => (
                 <tr data-variant-id={v.id}>
+                  <td class="variant-order-cell">
+                    <div class="cat-order">
+                      <button type="button" class="v-move-up" disabled={i === 0}>▲</button>
+                      <button type="button" class="v-move-down" disabled={i === variants.length - 1}>▼</button>
+                    </div>
+                    <input type="number" class="v-pos-input" min="1" max={variants.length} value={i + 1} data-variant-id={v.id} />
+                  </td>
                   <td><input type="text" class="code-input" value={v.variant_code} data-field="__code" /></td>
                   {fieldLabels.map((f) => <td><input type="text" value={v.values[f.attr_key] || ''} data-field={f.attr_key} /></td>)}
                   <td class="row-actions">
@@ -414,7 +433,7 @@ const val = (v) => v ?? '';
       const tbody = document.getElementById('vtableBody');
       const tr = document.createElement('tr');
       tr.classList.add('row-dirty');
-      let html = `<td><input type="text" class="code-input" data-field="__code" placeholder="Yeni kod"></td>`;
+      let html = `<td class="variant-order-cell">—</td><td><input type="text" class="code-input" data-field="__code" placeholder="Yeni kod"></td>`;
       fieldKeys.forEach((key) => {
         html += `<td><input type="text" data-field="${key}"></td>`;
       });
@@ -700,6 +719,81 @@ const val = (v) => v ?? '';
           });
           window.location.reload();
         }
+      });
+    });
+
+    // Ürünün kendi sırası (genel ürün listesindeki yeri)
+    document.getElementById('applyOwnPosition')?.addEventListener('click', async () => {
+      const input = document.getElementById('ownPositionInput');
+      const newPosition = Number(input.value);
+      if (!newPosition || newPosition < 1) return;
+      const res = await fetch('/api/products/move-to-position', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: document.querySelector('[name="id"]').value, newPosition }),
+      });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Sıra güncellenemedi, tekrar dene.');
+      }
+    });
+
+    // Varyant satırlarının sırası (bu ürünün kendi teknik veri tablosu içinde)
+    function currentVariantOrder() {
+      return Array.from(document.querySelectorAll('#vtableBody tr[data-variant-id]')).map((tr) => tr.dataset.variantId);
+    }
+    async function saveVariantOrder(ids) {
+      await fetch('/api/products/reorder-variants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      window.location.reload();
+    }
+    document.querySelectorAll('.v-move-up').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const tr = btn.closest('tr');
+        const prev = tr.previousElementSibling;
+        if (prev && prev.dataset.variantId) {
+          tr.parentNode.insertBefore(tr, prev);
+          await saveVariantOrder(currentVariantOrder());
+        }
+      });
+    });
+    document.querySelectorAll('.v-move-down').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const tr = btn.closest('tr');
+        const next = tr.nextElementSibling;
+        if (next && next.dataset.variantId) {
+          tr.parentNode.insertBefore(next, tr);
+          await saveVariantOrder(currentVariantOrder());
+        }
+      });
+    });
+    document.querySelectorAll('.v-pos-input').forEach((input) => {
+      const applyVariantPosition = async () => {
+        const newPosition = Number(input.value);
+        if (!newPosition || newPosition < 1) return;
+        const variantId = input.dataset.variantId;
+        const res = await fetch('/api/products/move-variant-to-position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variantId, newPosition }),
+        });
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          const data = await res.json();
+          alert(data.error || 'Sıra güncellenemedi, tekrar dene.');
+        }
+      };
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); applyVariantPosition(); }
+      });
+      input.addEventListener('blur', () => {
+        if (Number(input.value) !== Number(input.defaultValue)) applyVariantPosition();
       });
     });
   </script>
