@@ -16,6 +16,7 @@ const [products, categories] = await Promise.all([
   getProductsAdmin(db, { brand: brand || undefined, categoryId: categoryId || undefined, search: search || undefined }),
   getCategoriesAdmin(db),
 ]);
+const isFiltered = !!(brand || categoryId || search);
 ---
 <AdminLayout title="Ürünler" activeNav="products">
   <div class="a-page-header">
@@ -40,10 +41,21 @@ const [products, categories] = await Promise.all([
     <a class="add-btn" href={`/products/new${brand ? `?brand=${brand}` : ''}`}>+ Yeni Ürün</a>
 
     <p class="count">{products.length} ürün</p>
+    {isFiltered && (
+      <p style="font-size:12.5px;color:var(--a-text-muted);margin:-8px 0 12px">
+        Filtre/arama aktifken sıralama değiştirilemez — genel sırayı görmek ve değiştirmek için filtreleri temizle.
+      </p>
+    )}
 
     {products.length === 0 && <div class="empty">Filtreyle eşleşen ürün yok.</div>}
-    {products.map((p) => (
-      <div class="prod-card">
+    {products.map((p, i) => (
+      <div class="prod-card" data-id={p.id}>
+        {!isFiltered && (
+          <div class="cat-order">
+            <button type="button" class="move-up" disabled={i === 0}>▲</button>
+            <button type="button" class="move-down" disabled={i === products.length - 1}>▼</button>
+          </div>
+        )}
         <span class="prod-code">{p.prod_code}</span>
         <span class={`status-dot ${p.is_active ? 'on' : 'off'}`} title={p.is_active ? 'Aktif' : 'Pasif'}></span>
         <div class="prod-info">
@@ -51,6 +63,12 @@ const [products, categories] = await Promise.all([
           <div class="prod-meta">{p.category_name || 'Kategorisiz'}</div>
         </div>
         <span class={`brand-pill ${p.brand === 'Superpress' ? 'superpress' : 'simpa'}`}>{p.brand}</span>
+        {!isFiltered && (
+          <div class="pos-field">
+            <label>Sıra</label>
+            <input type="number" class="pos-input" min="1" max={products.length} value={i + 1} data-id={p.id} />
+          </div>
+        )}
         <div class="prod-actions">
           <a class="btn-edit" href={`/products/${p.id}`}>Düzenle</a>
           <button type="button" class="btn-delete" data-id={p.id} data-name={p.title_tr || p.title_en}>Sil</button>
@@ -75,6 +93,63 @@ const [products, categories] = await Promise.all([
           const data = await res.json();
           alert(data.error || 'Silinemedi, tekrar dene.');
         }
+      });
+    });
+
+    function currentOrder() {
+      return Array.from(document.querySelectorAll('.prod-card')).map((c) => c.dataset.id);
+    }
+    async function saveOrder(ids) {
+      await fetch('/api/products/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      window.location.reload();
+    }
+    document.querySelectorAll('.move-up').forEach((btn) => {
+      btn.onclick = async () => {
+        const card = btn.closest('.prod-card');
+        const prev = card.previousElementSibling;
+        if (prev) {
+          card.parentNode.insertBefore(card, prev);
+          await saveOrder(currentOrder());
+        }
+      };
+    });
+    document.querySelectorAll('.move-down').forEach((btn) => {
+      btn.onclick = async () => {
+        const card = btn.closest('.prod-card');
+        const next = card.nextElementSibling;
+        if (next) {
+          card.parentNode.insertBefore(next, card);
+          await saveOrder(currentOrder());
+        }
+      };
+    });
+
+    document.querySelectorAll('.pos-input').forEach((input) => {
+      const applyPosition = async () => {
+        const newPosition = Number(input.value);
+        if (!newPosition || newPosition < 1) return;
+        const id = input.dataset.id;
+        const res = await fetch('/api/products/move-to-position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, newPosition }),
+        });
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          const data = await res.json();
+          alert(data.error || 'Sıra güncellenemedi, tekrar dene.');
+        }
+      };
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); applyPosition(); }
+      });
+      input.addEventListener('blur', () => {
+        if (Number(input.value) !== Number(input.defaultValue)) applyPosition();
       });
     });
   </script>
