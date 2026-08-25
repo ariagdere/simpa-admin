@@ -286,7 +286,7 @@ export async function createProduct(db, brand) {
   return meta.last_row_id;
 }
 
-const PRODUCT_FIELDS = ['prod_code', 'title_tr', 'title_en', 'category_id', 'brand', 'drawing_ref', 'has_variant_table', 'is_active', 'sort_order'];
+const PRODUCT_FIELDS = ['prod_code', 'title_tr', 'title_en', 'category_id', 'brand', 'drawing_ref', 'has_variant_table', 'is_active', 'sort_order', 'catalog_page_tr', 'catalog_page_en', 'catalog_page_superpress'];
 
 export async function updateProduct(db, id, fields) {
   const keys = Object.keys(fields).filter((k) => PRODUCT_FIELDS.includes(k));
