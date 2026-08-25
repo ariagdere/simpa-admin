@@ -43,6 +43,9 @@ export async function POST({ request }) {
       drawing_ref: body.drawing_ref || null,
       has_variant_table: body.has_variant_table ? 1 : 0,
       is_active: body.is_active ? 1 : 0,
+      catalog_page_tr: body.catalog_page_tr ? Number(body.catalog_page_tr) : null,
+      catalog_page_en: body.catalog_page_en ? Number(body.catalog_page_en) : null,
+      catalog_page_superpress: body.catalog_page_superpress ? Number(body.catalog_page_superpress) : null,
     });
 
     await upsertProductSpec(db, id, 'OZELLIKLER', body.ozellikler_tr, body.ozellikler_en);
