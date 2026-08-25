@@ -100,25 +100,23 @@ const val = (v) => v ?? '';
           </div>
           <div class="field"><label>Teknik Çizim Referansı</label><input type="text" name="drawing_ref" value={val(product.drawing_ref)} /></div>
         </div>
-        {product.brand === 'Superpress' ? (
-          <div class="row2">
-            <div class="field">
-              <label>Katalog Sayfası <span style="font-weight:400;color:#9ca3af">— SUPERPRESS_Catalogue2026.pdf</span></label>
-              <input type="number" name="catalog_page_superpress" min="1" value={val(product.catalog_page_superpress)} style="width:120px" />
-            </div>
+        <div class="row2">
+          <div class="field">
+            <label>Katalog Sayfası (TR) <span style="font-weight:400;color:#9ca3af">— SimpaKatalog2026.pdf</span></label>
+            <input type="number" name="catalog_page_tr" min="1" value={val(product.catalog_page_tr)} style="width:120px" />
           </div>
-        ) : (
-          <div class="row2">
-            <div class="field">
-              <label>Katalog Sayfası (TR) <span style="font-weight:400;color:#9ca3af">— SimpaKatalog2026.pdf</span></label>
-              <input type="number" name="catalog_page_tr" min="1" value={val(product.catalog_page_tr)} style="width:120px" />
-            </div>
-            <div class="field">
-              <label>Katalog Sayfası (EN) <span style="font-weight:400;color:#9ca3af">— SimpaCatalogue2026.pdf</span></label>
-              <input type="number" name="catalog_page_en" min="1" value={val(product.catalog_page_en)} style="width:120px" />
-            </div>
+          <div class="field">
+            <label>Katalog Sayfası (EN) <span style="font-weight:400;color:#9ca3af">— SimpaCatalogue2026.pdf</span></label>
+            <input type="number" name="catalog_page_en" min="1" value={val(product.catalog_page_en)} style="width:120px" />
           </div>
-        )}
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Katalog Sayfası (Superpress) <span style="font-weight:400;color:#9ca3af">— SUPERPRESS_Catalogue2026.pdf</span></label>
+            <input type="number" name="catalog_page_superpress" min="1" value={val(product.catalog_page_superpress)} style="width:120px" />
+          </div>
+        </div>
+        <div style="margin:-8px 0 4px;font-size:12.5px;color:var(--a-text-muted)">Marka ne olursa olsun her üç alan da girilebilir — Simpa kataloğunda Superpress ürünleri de (SP- serisi), Superpress kataloğunda da bazı ortak ürünler yer alabiliyor.</div>
         {!isNew && (
           <div class="row2">
             <div class="field">
